@@ -1,0 +1,19 @@
+# Convenience targets. On machines without make, run the uv commands directly (see README.md).
+.PHONY: install test lint format key
+
+install:
+	uv sync
+
+test:
+	uv run pytest
+
+lint:
+	uv run ruff check .
+	uv run ruff format --check .
+
+format:
+	uv run ruff format .
+	uv run ruff check --fix .
+
+key:
+	uv run python scripts/gen_guard_key.py --write-env

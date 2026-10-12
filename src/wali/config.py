@@ -1,0 +1,135 @@
+"""Typed settings, loaded from environment variables and an optional ``.env`` file.
+
+Loading fails closed: an invalid value raises ``ConfigError`` instead of falling back to a
+default. Error messages name the offending variable but never echo its value, because some
+variables hold secrets.
+"""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Mapping
+from datetime import timedelta, timezone
+from decimal import Decimal
+from pathlib import Path
+
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
+
+DEFAULT_ENV_FILE = Path(".env")
+
+# Environment variable name -> Settings field name.
+_ENV_TO_FIELD: dict[str, str] = {
+    "ANTHROPIC_API_KEY": "anthropic_api_key",
+    "WALI_AGENT_MODEL": "agent_model",
+    "WALI_SENTINEL_MODEL": "sentinel_model",
+    "WALI_GUARD_PRIVATE_KEY": "guard_private_key",
+    "WALI_GUARD_PUBLIC_KEY": "guard_public_key",
+    "WALI_DB_PATH": "db_path",
+    "WALI_SEED_DIR": "seed_dir",
+    "WALI_AUDIT_LOG_PATH": "audit_log_path",
+    "WALI_DEFAULT_CURRENCY": "default_currency",
+    "WALI_UTC_OFFSET_HOURS": "utc_offset_hours",
+    "SIM_FAIL_RATE": "sim_fail_rate",
+    "SIM_SEED": "sim_seed",
+    "WALI_RECON_DATE_WINDOW_DAYS": "recon_date_window_days",
+    "WALI_RECON_AMOUNT_TOLERANCE": "recon_amount_tolerance",
+    "WALI_RECON_MISMATCH_MAX_RATIO": "recon_mismatch_max_ratio",
+    "WALI_AGENT_MAX_STEPS": "agent_max_steps",
+    "WALI_CONFIRM_TOKEN_TTL_SECONDS": "confirm_token_ttl_seconds",
+    "WALI_PROPOSALS_PER_HOUR": "proposals_per_hour",
+    "MANUAL_MINUTES_PER_ITEM": "manual_minutes_per_item",
+}
+_FIELD_TO_ENV = {field: env for env, field in _ENV_TO_FIELD.items()}
+
+
+class ConfigError(ValueError):
+    """Raised when the configuration is invalid."""
+
+
+class Settings(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    # LLM. Model names are configuration only; there is deliberately no default.
+    anthropic_api_key: SecretStr | None = None
+    agent_model: str | None = None
+    sentinel_model: str | None = None
+
+    # Guard signing key (Ed25519, base64 of the raw 32 bytes).
+    guard_private_key: SecretStr | None = None
+    guard_public_key: str | None = None
+
+    # Storage.
+    db_path: Path = Path("data/wali.db")
+    seed_dir: Path = Path("data/seed")
+    audit_log_path: Path = Path("data/audit.jsonl")
+
+    # Locale.
+    default_currency: str = Field("IDR", min_length=3, max_length=3)
+    utc_offset_hours: int = Field(7, ge=-12, le=14)
+
+    # Simulated environment failure injection.
+    sim_fail_rate: float = Field(0.0, ge=0.0, le=1.0)
+    sim_seed: int = 42
+
+    # Reconciliation tolerances.
+    recon_date_window_days: int = Field(3, ge=0, le=31)
+    recon_amount_tolerance: Decimal = Field(Decimal("0"), ge=0)
+    recon_mismatch_max_ratio: Decimal = Field(Decimal("0.05"), ge=0, le=1)
+
+    # Agent and guard.
+    agent_max_steps: int = Field(8, ge=1, le=50)
+    confirm_token_ttl_seconds: int = Field(300, ge=1, le=3600)
+    proposals_per_hour: int = Field(10, ge=1)
+
+    # PLACEHOLDER until the finance analyst supplies a figure from real interviews.
+    manual_minutes_per_item: Decimal = Field(Decimal("5"), gt=0)
+
+    @property
+    def tz(self) -> timezone:
+        """The business timezone as a fixed UTC offset."""
+        return timezone(timedelta(hours=self.utc_offset_hours))
+
+
+def read_env_file(path: Path) -> dict[str, str]:
+    """Parse ``KEY=VALUE`` lines. Blank lines and ``#`` comments are ignored."""
+    if not path.is_file():
+        return {}
+    values: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        values[key.strip()] = value
+    return values
+
+
+def load_settings(
+    env: Mapping[str, str] | None = None,
+    env_file: Path | None = DEFAULT_ENV_FILE,
+) -> Settings:
+    """Build settings from ``env_file`` overlaid with ``env`` (default: the process environment).
+
+    Unknown variables are ignored and empty values count as unset.
+    """
+    source: dict[str, str] = {}
+    if env_file is not None:
+        source.update(read_env_file(env_file))
+    source.update(os.environ if env is None else env)
+
+    values = {
+        field: source[name].strip()
+        for name, field in _ENV_TO_FIELD.items()
+        if source.get(name, "").strip()
+    }
+    try:
+        return Settings.model_validate(values)
+    except ValidationError as exc:
+        problems = "; ".join(
+            f"{_FIELD_TO_ENV.get(str(err['loc'][0]), err['loc'][0])}: {err['msg']}"
+            for err in exc.errors(include_input=False, include_url=False)
+        )
+        raise ConfigError(f"Invalid configuration: {problems}") from None

@@ -1,0 +1,30 @@
+# Secrets: never commit. Only .env.example is tracked.
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+
+# Runtime state (generated; the seed CSVs under data/seed/ are tracked)
+*.db
+*.db-journal
+*.sqlite
+data/audit*.jsonl
+
+# Generated evaluation reports
+eval/reports/*
+!eval/reports/.gitkeep
+
+# Editors
+.idea/
+.vscode/
