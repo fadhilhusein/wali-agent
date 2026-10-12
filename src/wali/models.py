@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import datetime as dt
 from decimal import Decimal
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 Role = Literal["owner", "bookkeeper", "staff"]
 Direction = Literal["in", "out"]
@@ -113,8 +113,12 @@ class AmountMismatch(Model):
 
 
 class DuplicateGroup(Model):
+    """Records that look like copies of ``original_id`` on the same side."""
+
     source: Literal["bank", "books"]
-    ids: list[str]
+    original_id: str
+    duplicate_ids: list[str]
+    amount: Decimal
 
 
 class ReconciliationReport(Model):
@@ -130,12 +134,51 @@ class DailyBalance(Model):
     balance: Decimal
 
 
+class RecurringItem(Model):
+    """A cash flow that repeats and is not covered by an invoice, such as daily sales or
+    monthly payroll. A monthly item on day 31 falls on the last day of shorter months."""
+
+    label: str
+    amount: PositiveAmount
+    direction: Direction
+    frequency: Literal["daily", "monthly"]
+    day_of_month: int | None = Field(default=None, ge=1, le=31)
+
+    @model_validator(mode="after")
+    def _day_matches_frequency(self) -> Self:
+        if (self.frequency == "monthly") != (self.day_of_month is not None):
+            raise ValueError("day_of_month is required for monthly items and only for them")
+        return self
+
+
 class CashflowForecast(Model):
+    """End-of-day balances for ``horizon_days`` days. ``shortfall_days`` are the days on which
+    the balance is below the threshold the forecast was asked to watch."""
+
     horizon_days: int = Field(ge=1)
     daily_balance: list[DailyBalance]
     lowest_balance: Decimal
     lowest_date: dt.date
     shortfall_days: list[dt.date]
+
+
+RecommendationKind = Literal[
+    "chase_receivable", "delay_payable", "split_payment", "prioritise_payable"
+]
+
+
+class Recommendation(Model):
+    """A candidate action for the owner to decide on. Nothing here is executed."""
+
+    kind: RecommendationKind
+    invoice_id: str
+    invoice_number: str
+    counterparty_name: str
+    amount: Decimal
+    days_overdue: int | None = None
+    delay_days: int | None = None
+    reason: str
+    effect_on_lowest_balance: Decimal
 
 
 class GuardApproval(Model):

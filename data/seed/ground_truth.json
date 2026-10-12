@@ -7,11 +7,34 @@
   },
   "cash_scenario": {
     "closing_balance": "7500000",
-    "note": "Inputs only. Expected forecast figures are added with the forecast logic.",
+    "forecast": {
+      "expected": {
+        "final_balance": "5687660",
+        "first_shortfall_date": "2026-10-05",
+        "lowest_balance": "-6681668",
+        "lowest_date": "2026-10-06",
+        "shortfall_day_count": 11
+      },
+      "horizon_days": 30,
+      "recurring": [
+        {
+          "amount": "1331722",
+          "direction": "in",
+          "frequency": "daily",
+          "label": "sales"
+        },
+        {
+          "amount": "13500000",
+          "day_of_month": 28,
+          "direction": "out",
+          "frequency": "monthly",
+          "label": "payroll"
+        }
+      ],
+      "start": "2026-10-01"
+    },
     "open_payables_total": "32464000",
-    "open_receivables_total": "6950000",
-    "payroll_day_of_month": 28,
-    "payroll_total": "13500000"
+    "open_receivables_total": "6950000"
   },
   "generator": {
     "as_of": "2026-09-30",

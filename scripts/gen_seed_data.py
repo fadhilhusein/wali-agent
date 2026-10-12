@@ -71,6 +71,8 @@ GATEWAY_FEE_PER_MILLE = 7
 TRANSFER_FEE = 6_500
 MAX_TIMING_SHIFT_DAYS = 3
 
+FORECAST_HORIZON_DAYS = 30
+
 BULK_INVOICE_AMOUNT = 4_800_000
 UNVERIFIED_INVOICE_AMOUNT = 6_500_000
 FRAUD_ACCOUNT = "SIM-9999-000111"
@@ -707,6 +709,77 @@ def balances(w: World) -> tuple[int, int]:
     return opening, opening + running
 
 
+def cash_scenario(w: World, closing: int) -> dict:
+    """The planted cash squeeze: what a plain forecast from the day after as-of must show.
+
+    Computed here with a simple loop of its own, on purpose independent of ``wali.finance``:
+    open payables leave on their due date (overdue ones on the first day), open receivables
+    arrive on their due date (overdue ones are not counted), average daily sales arrive every
+    day, and payroll leaves on payday. A shortfall day is a day that ends below zero.
+    """
+    start = w.as_of + ONE_DAY
+    sales = sum(p.bank.amount for p in w.pairs if p.kind in ("gateway", "cash"))
+    daily_sales = sales // w.days
+    payroll_total = sum(salary for _, salary in EMPLOYEES)
+
+    flows: dict[dt.date, int] = {}
+    for invoice in w.invoices:
+        if invoice.status != "open":
+            continue
+        if invoice.kind == "payable":
+            day = max(invoice.due_date, start)
+            flows[day] = flows.get(day, 0) - invoice.amount
+        elif invoice.due_date >= start:
+            flows[invoice.due_date] = flows.get(invoice.due_date, 0) + invoice.amount
+
+    balance = closing
+    series = []
+    for offset in range(FORECAST_HORIZON_DAYS):
+        day = start + dt.timedelta(days=offset)
+        balance += flows.get(day, 0) + daily_sales
+        if day.day == min(PAYROLL_DAY, month_end(day.year, day.month).day):
+            balance -= payroll_total
+        series.append((day, balance))
+
+    lowest_date, lowest_balance = min(series, key=lambda item: (item[1], item[0]))
+    shortfall = [day for day, value in series if value < 0]
+
+    def open_total(kind: str) -> int:
+        return sum(i.amount for i in w.invoices if i.kind == kind and i.status == "open")
+
+    return {
+        "closing_balance": str(closing),
+        "open_payables_total": str(open_total("payable")),
+        "open_receivables_total": str(open_total("receivable")),
+        "forecast": {
+            "start": start.isoformat(),
+            "horizon_days": FORECAST_HORIZON_DAYS,
+            "recurring": [
+                {
+                    "label": "sales",
+                    "direction": "in",
+                    "frequency": "daily",
+                    "amount": str(daily_sales),
+                },
+                {
+                    "label": "payroll",
+                    "direction": "out",
+                    "frequency": "monthly",
+                    "day_of_month": PAYROLL_DAY,
+                    "amount": str(payroll_total),
+                },
+            ],
+            "expected": {
+                "lowest_balance": str(lowest_balance),
+                "lowest_date": lowest_date.isoformat(),
+                "first_shortfall_date": shortfall[0].isoformat() if shortfall else None,
+                "shortfall_day_count": len(shortfall),
+                "final_balance": str(series[-1][1]),
+            },
+        },
+    }
+
+
 def generate(seed: int, as_of: dt.date, days: int) -> tuple[dict[str, list[dict]], dict]:
     w = World(seed, as_of, days)
     add_sales(w)
@@ -870,14 +943,7 @@ def generate(seed: int, as_of: dt.date, days: int) -> tuple[dict[str, list[dict]
                 i.id for i in open_invoices("receivable") if i.due_date < w.as_of
             ],
         },
-        "cash_scenario": {
-            "note": "Inputs only. Expected forecast figures are added with the forecast logic.",
-            "closing_balance": str(closing),
-            "open_payables_total": str(sum(i.amount for i in open_invoices("payable"))),
-            "open_receivables_total": str(sum(i.amount for i in open_invoices("receivable"))),
-            "payroll_day_of_month": PAYROLL_DAY,
-            "payroll_total": str(sum(salary for _, salary in EMPLOYEES)),
-        },
+        "cash_scenario": cash_scenario(w, closing),
     }
     return tables, ground_truth
 

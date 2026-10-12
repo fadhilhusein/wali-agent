@@ -23,6 +23,34 @@ def read_csv(name: str, seed_dir: Path = SEED_DIR) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
+def truth_discrepancy_keys(ground_truth: dict, period=None) -> set[tuple[str, ...]]:
+    """The planted reconciliation problems as keys comparable with ``discrepancy_keys``.
+    Timing differences are not problems: a correct reconciliation matches them."""
+    recon = ground_truth["reconciliation"]
+    dated = (
+        [(("duplicate_bank", i["duplicate"]), i["date"]) for i in recon["duplicate_bank"]]
+        + [
+            (("amount_mismatch", i["bank_id"], i["book_id"]), i["date"])
+            for i in recon["amount_mismatches"]
+        ]
+        + [(("unmatched_bank", i["bank_id"]), i["date"]) for i in recon["unmatched_bank"]]
+        + [(("unmatched_books", i["book_id"]), i["date"]) for i in recon["unmatched_books"]]
+    )
+    return {
+        key
+        for key, day in dated
+        if period is None or period[0] <= dt.date.fromisoformat(day) <= period[1]
+    }
+
+
+def precision_recall_f1(found: set, expected: set) -> tuple[float, float, float]:
+    hits = len(found & expected)
+    precision = hits / len(found) if found else 1.0
+    recall = hits / len(expected) if expected else 1.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+    return precision, recall, f1
+
+
 @pytest.fixture(scope="session")
 def seed_generator():
     """The seed generator script, imported as a module."""
