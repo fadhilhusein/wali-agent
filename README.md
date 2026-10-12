@@ -14,7 +14,8 @@ The project is being built in phases. This section lists only what exists and ha
 | Phase | Deliverable | State |
 | --- | --- | --- |
 | 0 | Scaffold: project config, settings, key generator, lint and tests | Done |
-| 1 to 10 | Environment, finance logic, guard, agent, interfaces, evaluation, packaging | Not started |
+| 1 | Models, `FinancialEnvironment` interface, SQLite simulated environment with role scopes and failure injection, synthetic seed data with ground truth | Done |
+| 2 to 10 | Finance logic, guard, agent, interfaces, evaluation, packaging | Not started |
 
 The full architecture description, third-party list, and demo script are added in phase 10.
 
@@ -41,7 +42,9 @@ uv run python scripts/gen_guard_key.py --write-env
 | Run tests | `make test` | `uv run pytest` |
 | Lint | `make lint` | `uv run ruff check .` then `uv run ruff format --check .` |
 | Format | `make format` | `uv run ruff format .` then `uv run ruff check --fix .` |
+| Regenerate seed data | `make seed` | `uv run python scripts/gen_seed_data.py --seed 42` |
 
 ## Documents
 
 - [docs/assumptions.md](docs/assumptions.md): what we do not know yet and the choices we made.
+- [data/seed/README.md](data/seed/README.md): the synthetic seed data and how to regenerate it.

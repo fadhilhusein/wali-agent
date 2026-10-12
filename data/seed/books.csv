@@ -1,0 +1,222 @@
+id,date,amount,direction,category,description,invoice_id,reconciled,data_label
+be-0001,2026-07-03,1123800,in,sales,Penjualan non-tunai STL-20260703,,false,SYNTHETIC
+be-0002,2026-07-03,714000,in,sales,Setoran penjualan tunai CSH-20260703,,false,SYNTHETIC
+be-0003,2026-07-03,903000,out,packaging,Bayar PT Kemasan Rapi KMS/202606/001,inv-0001,false,SYNTHETIC
+be-0004,2026-07-04,620400,in,sales,Penjualan non-tunai STL-20260704,,false,SYNTHETIC
+be-0005,2026-07-04,2851000,out,inventory,Bayar UD Kopi Pak Budi KOPI/202606/001,inv-0003,false,SYNTHETIC
+be-0006,2026-07-04,8000000,out,rent,Bayar Pengelola Ruko Melati SEWA/202606/001,inv-0002,false,SYNTHETIC
+be-0007,2026-07-05,1207400,in,sales,Penjualan non-tunai STL-20260705,,false,SYNTHETIC
+be-0008,2026-07-05,217000,out,inventory,Bayar Depot Air Tirta AIR/202606/001,inv-0005,false,SYNTHETIC
+be-0009,2026-07-06,825300,in,sales,Penjualan non-tunai STL-20260706,,false,SYNTHETIC
+be-0010,2026-07-06,850000,in,sales,Setoran penjualan tunai CSH-20260706,,false,SYNTHETIC
+be-0011,2026-07-06,1766000,out,inventory,Bayar CV Susu Segar Lestari SUSU/202606/001,inv-0004,false,SYNTHETIC
+be-0012,2026-07-06,600000,out,maintenance,Servis AC dibayar transfer,,false,SYNTHETIC
+be-0013,2026-07-07,782800,in,sales,Penjualan non-tunai STL-20260707,,false,SYNTHETIC
+be-0014,2026-07-08,714300,in,sales,Penjualan non-tunai STL-20260708,,false,SYNTHETIC
+be-0015,2026-07-08,704000,in,sales,Setoran penjualan tunai CSH-20260708,,false,SYNTHETIC
+be-0016,2026-07-09,1154300,in,sales,Penjualan non-tunai STL-20260709,,false,SYNTHETIC
+be-0017,2026-07-09,800000,out,inventory,Bayar Dapur Roti Bu Ani ROTI/202607/002,inv-0008,false,SYNTHETIC
+be-0018,2026-07-10,1206700,in,sales,Penjualan non-tunai STL-20260710,,false,SYNTHETIC
+be-0019,2026-07-10,1158000,in,sales,Setoran penjualan tunai CSH-20260710,,false,SYNTHETIC
+be-0020,2026-07-10,3064000,out,inventory,Bayar UD Kopi Pak Budi KOPI/202607/002,inv-0009,false,SYNTHETIC
+be-0021,2026-07-10,709000,out,inventory,Bayar Toko Gula Manis Jaya GULA/202607/001,inv-0006,false,SYNTHETIC
+be-0022,2026-07-11,671200,in,sales,Penjualan non-tunai STL-20260711,,false,SYNTHETIC
+be-0023,2026-07-11,1317000,out,inventory,Bayar CV Susu Segar Lestari SUSU/202607/002,inv-0010,false,SYNTHETIC
+be-0024,2026-07-12,1083700,in,sales,Penjualan non-tunai STL-20260712,,false,SYNTHETIC
+be-0025,2026-07-13,945600,in,sales,Penjualan non-tunai STL-20260713,,false,SYNTHETIC
+be-0026,2026-07-13,632000,in,sales,Setoran penjualan tunai CSH-20260713,,false,SYNTHETIC
+be-0027,2026-07-14,624400,in,sales,Penjualan non-tunai STL-20260714,,false,SYNTHETIC
+be-0028,2026-07-14,204000,out,inventory,Bayar Depot Air Tirta AIR/202607/002,inv-0011,false,SYNTHETIC
+be-0029,2026-07-15,676700,in,sales,Penjualan non-tunai STL-20260715,,false,SYNTHETIC
+be-0030,2026-07-15,823000,in,sales,Setoran penjualan tunai CSH-20260715,,false,SYNTHETIC
+be-0031,2026-07-15,1262000,out,packaging,Bayar PT Kemasan Rapi KMS/202607/002,inv-0007,false,SYNTHETIC
+be-0032,2026-07-16,790500,in,sales,Penjualan non-tunai STL-20260716,,false,SYNTHETIC
+be-0033,2026-07-17,1013900,in,sales,Penjualan non-tunai STL-20260717,,false,SYNTHETIC
+be-0034,2026-07-17,627000,in,sales,Setoran penjualan tunai CSH-20260717,,false,SYNTHETIC
+be-0035,2026-07-17,2738000,out,inventory,Bayar UD Kopi Pak Budi KOPI/202607/003,inv-0015,false,SYNTHETIC
+be-0036,2026-07-17,965000,out,inventory,Bayar Dapur Roti Bu Ani ROTI/202607/003,inv-0014,false,SYNTHETIC
+be-0037,2026-07-18,1059700,in,sales,Penjualan non-tunai STL-20260718,,false,SYNTHETIC
+be-0038,2026-07-18,1934000,out,utilities,Bayar Layanan Listrik (SIM) LISTRIK/202607/001,inv-0013,false,SYNTHETIC
+be-0039,2026-07-19,762800,in,sales,Penjualan non-tunai STL-20260719,,false,SYNTHETIC
+be-0040,2026-07-19,1749000,out,inventory,Bayar CV Susu Segar Lestari SUSU/202607/003,inv-0017,false,SYNTHETIC
+be-0041,2026-07-19,219000,out,inventory,Bayar Depot Air Tirta AIR/202607/003,inv-0018,false,SYNTHETIC
+be-0042,2026-07-20,1186500,in,sales,Penjualan non-tunai STL-20260720,,false,SYNTHETIC
+be-0043,2026-07-20,1158000,in,sales,Setoran penjualan tunai CSH-20260720,,false,SYNTHETIC
+be-0044,2026-07-21,943600,in,sales,Penjualan non-tunai STL-20260721,,false,SYNTHETIC
+be-0045,2026-07-22,780500,in,sales,Penjualan non-tunai STL-20260722,,false,SYNTHETIC
+be-0046,2026-07-22,1059000,in,sales,Setoran penjualan tunai CSH-20260722,,false,SYNTHETIC
+be-0047,2026-07-22,450000,out,utilities,Bayar Internet Cepat (SIM) NET/202607/001,inv-0016,false,SYNTHETIC
+be-0048,2026-07-22,2400000,in,receivables,Pelunasan PT Maju Bersama (SIM) SARI/INV/202607/001,inv-0012,false,SYNTHETIC
+be-0049,2026-07-23,1082700,in,sales,Penjualan non-tunai STL-20260723,,false,SYNTHETIC
+be-0050,2026-07-24,827800,in,sales,Penjualan non-tunai STL-20260724,,false,SYNTHETIC
+be-0051,2026-07-24,606000,in,sales,Setoran penjualan tunai CSH-20260724,,false,SYNTHETIC
+be-0052,2026-07-24,667000,out,inventory,Bayar Toko Gula Manis Jaya GULA/202607/002,inv-0019,false,SYNTHETIC
+be-0053,2026-07-25,1221600,in,sales,Penjualan non-tunai STL-20260725,,false,SYNTHETIC
+be-0054,2026-07-25,2708000,out,inventory,Bayar UD Kopi Pak Budi KOPI/202607/004,inv-0023,false,SYNTHETIC
+be-0055,2026-07-25,809000,out,inventory,Bayar Dapur Roti Bu Ani ROTI/202607/004,inv-0022,false,SYNTHETIC
+be-0056,2026-07-26,1260100,in,sales,Penjualan non-tunai STL-20260726,,false,SYNTHETIC
+be-0057,2026-07-27,730700,in,sales,Penjualan non-tunai STL-20260727,,false,SYNTHETIC
+be-0058,2026-07-27,1032000,in,sales,Setoran penjualan tunai CSH-20260727,,false,SYNTHETIC
+be-0059,2026-07-27,1548000,out,inventory,Bayar CV Susu Segar Lestari SUSU/202607/004,inv-0024,false,SYNTHETIC
+be-0060,2026-07-28,878700,in,sales,Penjualan non-tunai STL-20260728,,false,SYNTHETIC
+be-0061,2026-07-28,238000,out,inventory,Bayar Depot Air Tirta AIR/202607/004,inv-0025,false,SYNTHETIC
+be-0062,2026-07-28,4200000,out,payroll,Gaji Juli 2026 - Rudi,,false,SYNTHETIC
+be-0063,2026-07-28,4600000,out,payroll,Gaji Juli 2026 - Wati,,false,SYNTHETIC
+be-0064,2026-07-28,4700000,out,payroll,Gaji Juli 2026 - Agus,,false,SYNTHETIC
+be-0065,2026-07-29,827600,in,sales,Penjualan non-tunai STL-20260729,,false,SYNTHETIC
+be-0066,2026-07-29,759000,in,sales,Setoran penjualan tunai CSH-20260729,,false,SYNTHETIC
+be-0067,2026-07-30,776300,in,sales,Penjualan non-tunai STL-20260730,,false,SYNTHETIC
+be-0068,2026-07-31,1225400,in,sales,Penjualan non-tunai STL-20260731,,false,SYNTHETIC
+be-0069,2026-07-31,944000,in,sales,Setoran penjualan tunai CSH-20260731,,false,SYNTHETIC
+be-0070,2026-07-31,985000,out,inventory,Bayar Dapur Roti Bu Ani ROTI/202607/005,inv-0026,false,SYNTHETIC
+be-0071,2026-07-31,930000,out,packaging,Bayar PT Kemasan Rapi KMS/202607/003,inv-0021,false,SYNTHETIC
+be-0072,2026-07-31,2350000,in,receivables,Pelunasan Sekolah Tunas Harapan (SIM) SARI/INV/202607/002,inv-0020,false,SYNTHETIC
+be-0073,2026-07-31,15000,out,bank_fee,Biaya administrasi bank ADM-202607,,false,SYNTHETIC
+be-0074,2026-08-01,683700,in,sales,Penjualan non-tunai STL-20260801,,false,SYNTHETIC
+be-0075,2026-08-02,675900,in,sales,Penjualan non-tunai STL-20260802,,false,SYNTHETIC
+be-0076,2026-08-02,2524000,out,inventory,Bayar UD Kopi Pak Budi KOPI/202607/005,inv-0029,false,SYNTHETIC
+be-0077,2026-08-02,1500000,out,inventory,Bayar CV Susu Segar Lestari SUSU/202607/005,inv-0030,false,SYNTHETIC
+be-0078,2026-08-03,911200,in,sales,Penjualan non-tunai STL-20260803,,false,SYNTHETIC
+be-0079,2026-08-03,699000,in,sales,Setoran penjualan tunai CSH-20260803,,false,SYNTHETIC
+be-0080,2026-08-03,241000,out,inventory,Bayar Depot Air Tirta AIR/202607/005,inv-0031,false,SYNTHETIC
+be-0081,2026-08-04,894000,in,sales,Penjualan non-tunai STL-20260804,,false,SYNTHETIC
+be-0082,2026-08-04,8000000,out,rent,Bayar Pengelola Ruko Melati SEWA/202607/002,inv-0027,false,SYNTHETIC
+be-0083,2026-08-04,1143500,in,sales,Setoran penjualan tunai CSH-20260804,,false,SYNTHETIC
+be-0084,2026-08-05,1294200,in,sales,Penjualan non-tunai STL-20260805,,false,SYNTHETIC
+be-0085,2026-08-05,952000,in,sales,Setoran penjualan tunai CSH-20260805,,false,SYNTHETIC
+be-0086,2026-08-06,1094500,in,sales,Penjualan non-tunai STL-20260806,,false,SYNTHETIC
+be-0087,2026-08-07,816600,in,sales,Penjualan non-tunai STL-20260807,,false,SYNTHETIC
+be-0088,2026-08-07,644000,in,sales,Setoran penjualan tunai CSH-20260807,,false,SYNTHETIC
+be-0089,2026-08-07,892000,out,inventory,Bayar Toko Gula Manis Jaya GULA/202607/003,inv-0032,false,SYNTHETIC
+be-0090,2026-08-08,1206083,in,sales,Penjualan non-tunai STL-20260808,,false,SYNTHETIC
+be-0091,2026-08-08,2821000,out,inventory,Bayar UD Kopi Pak Budi KOPI/202608/006,inv-0035,false,SYNTHETIC
+be-0092,2026-08-08,922000,out,inventory,Bayar Dapur Roti Bu Ani ROTI/202608/006,inv-0034,false,SYNTHETIC
+be-0093,2026-08-09,976300,in,sales,Penjualan non-tunai STL-20260809,,false,SYNTHETIC
+be-0094,2026-08-09,1361000,out,inventory,Bayar CV Susu Segar Lestari SUSU/202608/006,inv-0036,false,SYNTHETIC
+be-0095,2026-08-09,201000,out,inventory,Bayar Depot Air Tirta AIR/202608/006,inv-0038,false,SYNTHETIC
+be-0096,2026-08-10,1039200,in,sales,Penjualan non-tunai STL-20260810,,false,SYNTHETIC
+be-0097,2026-08-10,727000,in,sales,Setoran penjualan tunai CSH-20260810,,false,SYNTHETIC
+be-0098,2026-08-11,910000,in,sales,Penjualan non-tunai STL-20260811,,false,SYNTHETIC
+be-0099,2026-08-11,1850000,in,receivables,Pelunasan Komunitas Lari Pagi (SIM) SARI/INV/202607/003,inv-0028,false,SYNTHETIC
+be-0100,2026-08-12,664500,in,sales,Penjualan non-tunai STL-20260812,,false,SYNTHETIC
+be-0101,2026-08-12,1165000,in,sales,Setoran penjualan tunai CSH-20260812,,false,SYNTHETIC
+be-0102,2026-08-13,840100,in,sales,Penjualan non-tunai STL-20260813,,false,SYNTHETIC
+be-0103,2026-08-13,923000,out,inventory,Bayar Dapur Roti Bu Ani ROTI/202608/007,inv-0039,false,SYNTHETIC
+be-0104,2026-08-14,1279400,in,sales,Penjualan non-tunai STL-20260814,,false,SYNTHETIC
+be-0105,2026-08-14,970000,in,sales,Setoran penjualan tunai CSH-20260814,,false,SYNTHETIC
+be-0106,2026-08-14,934000,out,packaging,Bayar PT Kemasan Rapi KMS/202607/004,inv-0033,false,SYNTHETIC
+be-0107,2026-08-15,1072900,in,sales,Penjualan non-tunai STL-20260815,,false,SYNTHETIC
+be-0108,2026-08-15,1203000,out,inventory,Bayar CV Susu Segar Lestari SUSU/202608/007,inv-0041,false,SYNTHETIC
+be-0109,2026-08-16,757500,in,sales,Penjualan non-tunai STL-20260816,,false,SYNTHETIC
+be-0110,2026-08-16,2393000,out,inventory,Bayar UD Kopi Pak Budi KOPI/202608/007,inv-0040,false,SYNTHETIC
+be-0111,2026-08-17,1177100,in,sales,Penjualan non-tunai STL-20260817,,false,SYNTHETIC
+be-0112,2026-08-17,671000,in,sales,Setoran penjualan tunai CSH-20260817,,false,SYNTHETIC
+be-0113,2026-08-17,233000,out,inventory,Bayar Depot Air Tirta AIR/202608/007,inv-0043,false,SYNTHETIC
+be-0114,2026-08-17,1750000,in,receivables,Pelunasan CV Cipta Karya (SIM) SARI/INV/202608/004,inv-0037,false,SYNTHETIC
+be-0115,2026-08-18,637500,in,sales,Penjualan non-tunai STL-20260818,,false,SYNTHETIC
+be-0116,2026-08-19,1141700,in,sales,Penjualan non-tunai STL-20260819,,false,SYNTHETIC
+be-0117,2026-08-19,833000,in,sales,Setoran penjualan tunai CSH-20260819,,false,SYNTHETIC
+be-0118,2026-08-20,1233200,in,sales,Penjualan non-tunai STL-20260820,,false,SYNTHETIC
+be-0119,2026-08-20,1650000,out,utilities,Bayar Layanan Listrik (SIM) LISTRIK/202608/002,inv-0042,false,SYNTHETIC
+be-0120,2026-08-21,837000,in,sales,Penjualan non-tunai STL-20260821,,false,SYNTHETIC
+be-0121,2026-08-21,681000,in,sales,Setoran penjualan tunai CSH-20260821,,false,SYNTHETIC
+be-0122,2026-08-22,790700,in,sales,Penjualan non-tunai STL-20260822,,false,SYNTHETIC
+be-0123,2026-08-22,1469000,out,inventory,Bayar CV Susu Segar Lestari SUSU/202608/008,inv-0050,false,SYNTHETIC
+be-0124,2026-08-22,840000,out,inventory,Bayar Dapur Roti Bu Ani ROTI/202608/008,inv-0048,false,SYNTHETIC
+be-0125,2026-08-22,450000,out,utilities,Bayar Internet Cepat (SIM) NET/202608/002,inv-0044,false,SYNTHETIC
+be-0126,2026-08-23,682700,in,sales,Penjualan non-tunai STL-20260823,,false,SYNTHETIC
+be-0127,2026-08-23,2412000,out,inventory,Bayar UD Kopi Pak Budi KOPI/202608/008,inv-0049,false,SYNTHETIC
+be-0128,2026-08-23,206000,out,inventory,Bayar Depot Air Tirta AIR/202608/008,inv-0051,false,SYNTHETIC
+be-0129,2026-08-23,842000,out,inventory,Bayar Toko Gula Manis Jaya GULA/202608/004,inv-0046,false,SYNTHETIC
+be-0130,2026-08-24,911300,in,sales,Penjualan non-tunai STL-20260824,,false,SYNTHETIC
+be-0131,2026-08-24,884000,in,sales,Setoran penjualan tunai CSH-20260824,,false,SYNTHETIC
+be-0132,2026-08-25,971400,in,sales,Penjualan non-tunai STL-20260825,,false,SYNTHETIC
+be-0133,2026-08-26,1128544,in,sales,Penjualan non-tunai STL-20260826,,false,SYNTHETIC
+be-0134,2026-08-26,973000,in,sales,Setoran penjualan tunai CSH-20260826,,false,SYNTHETIC
+be-0135,2026-08-26,2400000,in,receivables,Pelunasan PT Maju Bersama (SIM) SARI/INV/202608/005,inv-0045,false,SYNTHETIC
+be-0136,2026-08-27,733200,in,sales,Penjualan non-tunai STL-20260827,,false,SYNTHETIC
+be-0137,2026-08-27,1340000,out,packaging,Bayar PT Kemasan Rapi KMS/202608/005,inv-0047,false,SYNTHETIC
+be-0138,2026-08-28,903200,in,sales,Penjualan non-tunai STL-20260828,,false,SYNTHETIC
+be-0139,2026-08-28,963000,in,sales,Setoran penjualan tunai CSH-20260828,,false,SYNTHETIC
+be-0140,2026-08-28,1174000,out,inventory,Bayar Dapur Roti Bu Ani ROTI/202608/009,inv-0053,false,SYNTHETIC
+be-0141,2026-08-28,4200000,out,payroll,Gaji Agustus 2026 - Rudi,,false,SYNTHETIC
+be-0142,2026-08-28,4600000,out,payroll,Gaji Agustus 2026 - Wati,,false,SYNTHETIC
+be-0143,2026-08-28,4700000,out,payroll,Gaji Agustus 2026 - Agus,,false,SYNTHETIC
+be-0144,2026-08-29,771600,in,sales,Penjualan non-tunai STL-20260829,,false,SYNTHETIC
+be-0145,2026-08-29,1382000,out,inventory,Bayar CV Susu Segar Lestari SUSU/202608/009,inv-0055,false,SYNTHETIC
+be-0146,2026-08-30,1157043,in,sales,Penjualan non-tunai STL-20260830,,false,SYNTHETIC
+be-0147,2026-08-30,2942000,out,inventory,Bayar UD Kopi Pak Budi KOPI/202608/009,inv-0054,false,SYNTHETIC
+be-0148,2026-08-31,818700,in,sales,Penjualan non-tunai STL-20260831,,false,SYNTHETIC
+be-0149,2026-08-31,673000,in,sales,Setoran penjualan tunai CSH-20260831,,false,SYNTHETIC
+be-0150,2026-08-31,15000,out,bank_fee,Biaya administrasi bank ADM-202608,,false,SYNTHETIC
+be-0151,2026-09-01,1099000,in,sales,Penjualan non-tunai STL-20260901,,false,SYNTHETIC
+be-0152,2026-09-01,207000,out,inventory,Bayar Depot Air Tirta AIR/202608/009,inv-0056,false,SYNTHETIC
+be-0153,2026-09-02,1120100,in,sales,Penjualan non-tunai STL-20260902,,false,SYNTHETIC
+be-0154,2026-09-02,775000,in,sales,Setoran penjualan tunai CSH-20260902,,false,SYNTHETIC
+be-0155,2026-09-03,1037500,in,sales,Penjualan non-tunai STL-20260903,,false,SYNTHETIC
+be-0156,2026-09-03,835000,out,inventory,Bayar Dapur Roti Bu Ani ROTI/202608/010,inv-0060,false,SYNTHETIC
+be-0157,2026-09-03,8000000,out,rent,Bayar Pengelola Ruko Melati SEWA/202608/003,inv-0057,false,SYNTHETIC
+be-0158,2026-09-04,1197300,in,sales,Penjualan non-tunai STL-20260904,,false,SYNTHETIC
+be-0159,2026-09-04,850000,in,sales,Setoran penjualan tunai CSH-20260904,,false,SYNTHETIC
+be-0160,2026-09-04,1150000,in,receivables,Pelunasan Sekolah Tunas Harapan (SIM) SARI/INV/202608/006,inv-0052,false,SYNTHETIC
+be-0161,2026-09-05,733800,in,sales,Penjualan non-tunai STL-20260905,,false,SYNTHETIC
+be-0162,2026-09-05,2996000,out,inventory,Bayar UD Kopi Pak Budi KOPI/202608/010,inv-0061,false,SYNTHETIC
+be-0163,2026-09-05,1308000,out,inventory,Bayar CV Susu Segar Lestari SUSU/202608/010,inv-0063,false,SYNTHETIC
+be-0164,2026-09-05,842000,out,inventory,Bayar Toko Gula Manis Jaya GULA/202608/005,inv-0058,false,SYNTHETIC
+be-0165,2026-09-06,978600,in,sales,Penjualan non-tunai STL-20260906,,false,SYNTHETIC
+be-0166,2026-09-06,350000,in,inventory,Refund retur kemasan (belum diterima),,false,SYNTHETIC
+be-0167,2026-09-07,910800,in,sales,Penjualan non-tunai STL-20260907,,false,SYNTHETIC
+be-0168,2026-09-07,876000,in,sales,Setoran penjualan tunai CSH-20260907,,false,SYNTHETIC
+be-0169,2026-09-08,1124200,in,sales,Penjualan non-tunai STL-20260908,,false,SYNTHETIC
+be-0170,2026-09-08,181000,out,inventory,Bayar Depot Air Tirta AIR/202609/010,inv-0064,false,SYNTHETIC
+be-0171,2026-09-09,1163700,in,sales,Penjualan non-tunai STL-20260909,,false,SYNTHETIC
+be-0172,2026-09-09,1170000,in,sales,Setoran penjualan tunai CSH-20260909,,false,SYNTHETIC
+be-0173,2026-09-09,936000,out,packaging,Bayar PT Kemasan Rapi KMS/202608/006,inv-0059,false,SYNTHETIC
+be-0174,2026-09-10,779900,in,sales,Penjualan non-tunai STL-20260910,,false,SYNTHETIC
+be-0175,2026-09-11,1160800,in,sales,Penjualan non-tunai STL-20260911,,false,SYNTHETIC
+be-0176,2026-09-11,932000,in,sales,Setoran penjualan tunai CSH-20260911,,false,SYNTHETIC
+be-0177,2026-09-12,1290400,in,sales,Penjualan non-tunai STL-20260912,,false,SYNTHETIC
+be-0178,2026-09-12,1505000,out,inventory,Bayar CV Susu Segar Lestari SUSU/202609/011,inv-0067,false,SYNTHETIC
+be-0179,2026-09-12,1192000,out,inventory,Bayar Dapur Roti Bu Ani ROTI/202609/011,inv-0065,false,SYNTHETIC
+be-0180,2026-09-13,1229400,in,sales,Penjualan non-tunai STL-20260913,,false,SYNTHETIC
+be-0181,2026-09-13,2910000,out,inventory,Bayar UD Kopi Pak Budi KOPI/202609/011,inv-0066,false,SYNTHETIC
+be-0182,2026-09-14,1235600,in,sales,Penjualan non-tunai STL-20260914,,false,SYNTHETIC
+be-0183,2026-09-14,657000,in,sales,Setoran penjualan tunai CSH-20260914,,false,SYNTHETIC
+be-0184,2026-09-14,158000,out,inventory,Bayar Depot Air Tirta AIR/202609/011,inv-0068,false,SYNTHETIC
+be-0185,2026-09-15,787600,in,sales,Penjualan non-tunai STL-20260915,,false,SYNTHETIC
+be-0186,2026-09-16,1273200,in,sales,Penjualan non-tunai STL-20260916,,false,SYNTHETIC
+be-0187,2026-09-16,632000,in,sales,Setoran penjualan tunai CSH-20260916,,false,SYNTHETIC
+be-0188,2026-09-17,1259400,in,sales,Penjualan non-tunai STL-20260917,,false,SYNTHETIC
+be-0189,2026-09-17,865000,out,inventory,Bayar Dapur Roti Bu Ani ROTI/202609/012,inv-0073,false,SYNTHETIC
+be-0190,2026-09-18,858400,in,sales,Penjualan non-tunai STL-20260918,,false,SYNTHETIC
+be-0191,2026-09-18,1010000,in,sales,Setoran penjualan tunai CSH-20260918,,false,SYNTHETIC
+be-0192,2026-09-19,819300,in,sales,Penjualan non-tunai STL-20260919,,false,SYNTHETIC
+be-0193,2026-09-19,2694000,out,inventory,Bayar UD Kopi Pak Budi KOPI/202609/012,inv-0075,false,SYNTHETIC
+be-0194,2026-09-19,1719000,out,inventory,Bayar CV Susu Segar Lestari SUSU/202609/012,inv-0076,false,SYNTHETIC
+be-0195,2026-09-19,1088500,in,sales,Setoran penjualan tunai CSH-20260919,,false,SYNTHETIC
+be-0196,2026-09-20,654200,in,sales,Penjualan non-tunai STL-20260920,,false,SYNTHETIC
+be-0197,2026-09-20,152000,out,inventory,Bayar Depot Air Tirta AIR/202609/012,inv-0077,false,SYNTHETIC
+be-0198,2026-09-20,697000,out,inventory,Bayar Toko Gula Manis Jaya GULA/202609/006,inv-0070,false,SYNTHETIC
+be-0199,2026-09-21,772800,in,sales,Penjualan non-tunai STL-20260921,,false,SYNTHETIC
+be-0200,2026-09-21,1180000,in,sales,Setoran penjualan tunai CSH-20260921,,false,SYNTHETIC
+be-0201,2026-09-22,1188100,in,sales,Penjualan non-tunai STL-20260922,,false,SYNTHETIC
+be-0202,2026-09-23,857700,in,sales,Penjualan non-tunai STL-20260923,,false,SYNTHETIC
+be-0203,2026-09-23,817000,in,sales,Setoran penjualan tunai CSH-20260923,,false,SYNTHETIC
+be-0204,2026-09-24,1136900,in,sales,Penjualan non-tunai STL-20260924,,false,SYNTHETIC
+be-0205,2026-09-24,1043000,out,inventory,Bayar Dapur Roti Bu Ani ROTI/202609/013,inv-0079,false,SYNTHETIC
+be-0206,2026-09-24,1021000,out,packaging,Bayar PT Kemasan Rapi KMS/202609/007,inv-0072,false,SYNTHETIC
+be-0207,2026-09-25,1008900,in,sales,Penjualan non-tunai STL-20260925,,false,SYNTHETIC
+be-0208,2026-09-25,1005000,in,sales,Setoran penjualan tunai CSH-20260925,,false,SYNTHETIC
+be-0209,2026-09-26,1126600,in,sales,Penjualan non-tunai STL-20260926,,false,SYNTHETIC
+be-0210,2026-09-26,2910000,out,inventory,Bayar UD Kopi Pak Budi KOPI/202609/013,inv-0081,false,SYNTHETIC
+be-0211,2026-09-27,975800,in,sales,Penjualan non-tunai STL-20260927,,false,SYNTHETIC
+be-0212,2026-09-28,717000,in,sales,Penjualan non-tunai STL-20260928,,false,SYNTHETIC
+be-0213,2026-09-28,871000,in,sales,Setoran penjualan tunai CSH-20260928,,false,SYNTHETIC
+be-0214,2026-09-28,1403000,out,inventory,Bayar CV Susu Segar Lestari SUSU/202609/013,inv-0082,false,SYNTHETIC
+be-0215,2026-09-28,4200000,out,payroll,Gaji September 2026 - Rudi,,false,SYNTHETIC
+be-0216,2026-09-28,4600000,out,payroll,Gaji September 2026 - Wati,,false,SYNTHETIC
+be-0217,2026-09-28,4700000,out,payroll,Gaji September 2026 - Agus,,false,SYNTHETIC
+be-0218,2026-09-29,714300,in,sales,Penjualan non-tunai STL-20260929,,false,SYNTHETIC
+be-0219,2026-09-29,220000,out,inventory,Bayar Depot Air Tirta AIR/202609/013,inv-0083,false,SYNTHETIC
+be-0220,2026-09-30,807614,in,sales,Penjualan non-tunai STL-20260930,,false,SYNTHETIC
+be-0221,2026-09-30,1174000,in,sales,Setoran penjualan tunai CSH-20260930,,false,SYNTHETIC

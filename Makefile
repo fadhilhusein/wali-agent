@@ -1,5 +1,5 @@
 # Convenience targets. On machines without make, run the uv commands directly (see README.md).
-.PHONY: install test lint format key
+.PHONY: install test lint format key seed
 
 install:
 	uv sync
@@ -17,3 +17,6 @@ format:
 
 key:
 	uv run python scripts/gen_guard_key.py --write-env
+
+seed:
+	uv run python scripts/gen_seed_data.py --seed 42

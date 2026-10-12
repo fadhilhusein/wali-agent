@@ -1,0 +1,11 @@
+id,name,verified_account,account_verified,avg_invoice_amount,data_label
+sup-kopi,UD Kopi Pak Budi,SIM-2312-992697,true,2772000,SYNTHETIC
+sup-susu,CV Susu Segar Lestari,SIM-4044-171849,true,1487000,SYNTHETIC
+sup-roti,Dapur Roti Bu Ani,SIM-2113-808011,true,941000,SYNTHETIC
+sup-air,Depot Air Tirta,SIM-4853-523389,true,207000,SYNTHETIC
+sup-kemasan,PT Kemasan Rapi,SIM-2964-697347,true,1071000,SYNTHETIC
+sup-gula,Toko Gula Manis Jaya,SIM-5033-707040,true,757000,SYNTHETIC
+sup-sewa,Pengelola Ruko Melati,SIM-1651-749468,true,8000000,SYNTHETIC
+sup-listrik,Layanan Listrik (SIM),SIM-2343-539589,true,1797000,SYNTHETIC
+sup-internet,Internet Cepat (SIM),SIM-9565-431737,true,450000,SYNTHETIC
+sup-mesin,CV Servis Mesin Kopi Baru,SIM-5272-314181,false,0,SYNTHETIC

@@ -1,0 +1,4 @@
+id,name,role,business_id,data_label
+user-owner,Sari,owner,biz-toko-sari,SYNTHETIC
+user-bookkeeper,Dewi,bookkeeper,biz-toko-sari,SYNTHETIC
+user-staff,Rudi,staff,biz-toko-sari,SYNTHETIC
