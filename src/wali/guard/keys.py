@@ -56,3 +56,8 @@ def load_private_key(encoded: str) -> Ed25519PrivateKey:
 
 def load_public_key(encoded: str) -> Ed25519PublicKey:
     return Ed25519PublicKey.from_public_bytes(_decode(encoded, "public"))
+
+
+def public_key_of(private_encoded: str) -> str:
+    """The encoded public key that belongs to an encoded private key."""
+    return encode_public_key(load_private_key(private_encoded).public_key())

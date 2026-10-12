@@ -16,7 +16,8 @@ The project is being built in phases. This section lists only what exists and ha
 | 0 | Scaffold: project config, settings, key generator, lint and tests | Done |
 | 1 | Models, `FinancialEnvironment` interface, SQLite simulated environment with role scopes and failure injection, synthetic seed data with ground truth | Done |
 | 2 | Finance logic as pure functions: reconciliation, cash-flow forecast, recommendation candidates | Done |
-| 3 to 10 | Guard, agent, interfaces, evaluation, packaging | Not started |
+| 3 | Guard core: signed mandate, deterministic policy, one-time confirmation tokens, hash-chained audit log, guard service | Done |
+| 4 to 10 | Agent, interfaces, sentinel, evaluation, packaging | Not started |
 
 The full architecture description, third-party list, and demo script are added in phase 10.
 

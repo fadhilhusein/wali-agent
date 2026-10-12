@@ -5,11 +5,15 @@ import itertools
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from wali.guard.audit import AuditLog
 from wali.guard.keys import generate_keypair, load_private_key
+from wali.guard.service import GuardService, MandateRequest
 from wali.guard.signing import sign_payload
+from wali.guard.store import GuardStore
 from wali.models import GuardApproval, Invoice, Principal, Supplier
 from wali.tools.sim_env import SimEnvironment
 
@@ -49,6 +53,97 @@ def precision_recall_f1(found: set, expected: set) -> tuple[float, float, float]
     recall = hits / len(expected) if expected else 1.0
     f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
     return precision, recall, f1
+
+
+def flagged_invoice_ids(ground_truth: dict) -> set[str]:
+    """Invoices planted with a problem the guard must refuse or question."""
+    planted = ground_truth["invoices"]
+    single = ("account_change_fraud", "unverified_supplier", "amount_anomaly")
+    ids = {item["invoice_id"] for key in single for item in planted[key]}
+    for pair in planted["duplicate_invoices"]:
+        ids |= {pair["original"], pair["duplicate"]}
+    return ids
+
+
+def verified_supplier_ids() -> list[str]:
+    return [row["id"] for row in read_csv("suppliers") if row["account_verified"] == "true"]
+
+
+def mandate_request(**overrides) -> MandateRequest:
+    """The mandate from the specification's example, covering every verified supplier."""
+    fields = {
+        "per_payment": "5000000",
+        "per_week": "15000000",
+        "confirm_above": "1000000",
+        "min_cash_buffer": "3000000",
+        "allowed_suppliers": verified_supplier_ids(),
+        "valid_days": 30,
+        "bookkeeper_can_propose": True,
+        "bookkeeper_max_propose": "5000000",
+    }
+    fields.update(overrides)
+    return MandateRequest(**fields)
+
+
+def activate_mandate(guard: GuardService, owner: Principal, request: MandateRequest | None = None):
+    """Draft a mandate and confirm it as the owner, the way an interface would."""
+    drafted = guard.draft_mandate(owner, request or mandate_request())
+    assert drafted.status == "needs_confirmation", drafted
+    (confirmation,) = guard.collect_confirmation_requests()
+    activated = guard.confirm_mandate(owner, confirmation.token)
+    assert activated.status == "active", activated
+    return activated
+
+
+class Clock:
+    """A clock the test controls."""
+
+    def __init__(self, start: dt.datetime) -> None:
+        self.now = start
+
+    def __call__(self) -> dt.datetime:
+        return self.now
+
+    def advance(self, **delta) -> None:
+        self.now += dt.timedelta(**delta)
+
+
+@pytest.fixture
+def clock(now) -> Clock:
+    return Clock(now)
+
+
+@pytest.fixture
+def audit_log(tmp_path) -> AuditLog:
+    return AuditLog(tmp_path / "audit.jsonl")
+
+
+@pytest.fixture
+def world(make_env, guard_keys, clock, audit_log):
+    """A simulated environment and a guard wired together on one controllable clock."""
+    env = make_env(clock=clock)
+    store = GuardStore()
+
+    def make_guard(**options) -> GuardService:
+        return GuardService(
+            env,
+            guard_keys[0],
+            audit_log,
+            business_id=env.business_id,
+            currency=env.currency,
+            store=store,
+            clock=clock,
+            **options,
+        )
+
+    return SimpleNamespace(
+        env=env,
+        store=store,
+        audit=audit_log,
+        clock=clock,
+        guard=make_guard(),
+        make_guard=make_guard,
+    )
 
 
 @pytest.fixture(scope="session")
