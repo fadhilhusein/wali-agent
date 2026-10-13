@@ -19,6 +19,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from wali.agent.dialogue import fallback_hint
 from wali.finance.forecast import detect_recurring, forecast
 from wali.finance.recommend import recommend
 from wali.finance.reconcile import ReconcileConfig, reconcile
@@ -279,10 +280,11 @@ class _MandateArgs(_Args):
 class _ToolError(Exception):
     """A problem the model should be told about in plain words."""
 
-    def __init__(self, code: str, message: str) -> None:
+    def __init__(self, code: str, message: str, what_to_offer: str | None = None) -> None:
         super().__init__(code)
         self.code = code
         self.message = message
+        self.what_to_offer = what_to_offer
 
 
 @dataclass(frozen=True)
@@ -329,7 +331,13 @@ class ToolRegistry:
         session_id: str = "",
         reconcile_config: ReconcileConfig | None = None,
         is_suspicious: Callable[[], bool] = lambda: False,
+        pending_proposals: list[dict[str, Any]] | None = None,
+        replace_pending: bool = False,
     ) -> None:
+        """``pending_proposals`` is the session's own list of payment requests still waiting
+        for the owner; this registry appends to it. With ``replace_pending`` (set when the
+        person's message is a correction), those earlier requests are withdrawn as soon as a
+        new payment is proposed."""
         self._env = env
         self._guard = guard
         self._principal = principal
@@ -337,6 +345,8 @@ class ToolRegistry:
         self._session_id = session_id
         self._reconcile_config = reconcile_config or ReconcileConfig()
         self._is_suspicious = is_suspicious
+        self._pending_proposals = pending_proposals if pending_proposals is not None else []
+        self._replace_pending = replace_pending
         self._handlers: dict[str, tuple[type[_Args], Callable[[Any], Any]]] = {
             "get_balance": (_NoArgs, self._get_balance),
             "list_transactions": (_PeriodArgs, self._list_transactions),
@@ -370,7 +380,9 @@ class ToolRegistry:
                 is_error=False,
             )
         except _ToolError as error:
-            outcome = self._error(name, shown_arguments, error.code, error.message)
+            outcome = self._error(
+                name, shown_arguments, error.code, error.message, error.what_to_offer
+            )
         except Exception:
             outcome = self._error(
                 name,
@@ -389,8 +401,17 @@ class ToolRegistry:
         return outcome
 
     @staticmethod
-    def _error(name: str, arguments: dict[str, Any], code: str, message: str) -> ToolOutcome:
-        body = {"untrusted_data": None, "error": {"code": code, "message": message}}
+    def _error(
+        name: str,
+        arguments: dict[str, Any],
+        code: str,
+        message: str,
+        what_to_offer: str | None = None,
+    ) -> ToolOutcome:
+        error: dict[str, Any] = {"code": code, "message": message}
+        if what_to_offer:
+            error["what_to_offer"] = what_to_offer
+        body = {"untrusted_data": None, "error": error}
         return ToolOutcome(
             name=name,
             arguments=arguments,
@@ -422,7 +443,9 @@ class ToolRegistry:
             raise _ToolError(
                 "TOOL_FAILED",
                 "The financial system did not respond, even after one retry. Nothing was "
-                "changed. The user can try again, or you can offer another way to help.",
+                "changed. Do not call this tool again in this turn. Tell the person plainly "
+                "and do not make up the missing figures.",
+                fallback_hint(name) or "Offer to try again in a moment.",
             ) from None
         except ValueError as error:
             raise _ToolError("INVALID_ARGUMENTS", str(error)) from None
@@ -478,7 +501,16 @@ class ToolRegistry:
             and (args.due_before is None or i.due_date < args.due_before)
         ]
         views = [self._invoice_view(i, tuple(everything)) for i in chosen]
-        return {"today": self._today(), "invoices": _capped(views)}
+        return {
+            "today": self._today(),
+            "invoices": _capped(views),
+            # Given so that the model never has to add amounts up itself.
+            "amount_total": sum((i.amount for i in chosen), Decimal("0")),
+            "amount_total_overdue": sum(
+                (i.amount for i in chosen if i.status == "open" and i.due_date < self._today()),
+                Decimal("0"),
+            ),
+        }
 
     def _get_supplier(self, args: _SupplierArgs) -> Any:
         supplier = self._read(self._env.get_supplier, args.supplier_id)
@@ -640,12 +672,35 @@ class ToolRegistry:
         )
 
     def _propose_payment(self, args: _PaymentArgs) -> Any:
-        return self._guard.propose_payment(
+        withdrawn = []
+        if self._replace_pending:
+            # The person corrected themselves: what they asked for before is no longer wanted.
+            for earlier in self._pending_proposals:
+                if self._guard.withdraw_proposal(
+                    self._principal, earlier["proposal_id"], session_id=self._session_id
+                ):
+                    withdrawn.append({k: v for k, v in earlier.items() if k != "proposal_id"})
+            self._pending_proposals.clear()
+
+        decision = self._guard.propose_payment(
             self._principal,
             args.invoice_id,
             session_id=self._session_id,
             suspicious=bool(self._is_suspicious()),
         )
+        if decision.status == "needs_confirmation" and decision.summary is not None:
+            self._pending_proposals.append(
+                {
+                    "proposal_id": decision.proposal_id,
+                    "supplier_name": decision.summary.supplier_name,
+                    "invoice_number": decision.summary.invoice_number,
+                    "amount": decision.summary.amount,
+                }
+            )
+        result = decision.model_dump(mode="json")
+        if withdrawn:
+            result["earlier_requests_withdrawn"] = withdrawn
+        return result
 
     def _propose_mandate(self, args: _MandateArgs) -> Any:
         return self._guard.draft_mandate(

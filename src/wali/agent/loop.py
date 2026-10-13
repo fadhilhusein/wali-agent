@@ -20,6 +20,13 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from wali.agent.dialogue import (
+    AUTOMATIC_CHECK_PREFIX,
+    UNVERIFIED_FIGURES_NOTE,
+    plain_text,
+    reply_problems,
+    ungrounded_figures,
+)
 from wali.agent.llm import LLMClient, LLMError
 from wali.models import Principal
 from wali.tools.registry import ToolRegistry
@@ -57,6 +64,8 @@ class Session:
     principal: Principal
     system_prompt: str
     messages: list[dict[str, Any]] = field(default_factory=list)
+    # Payment requests made in this conversation that are still waiting for the owner.
+    pending_proposals: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -74,6 +83,8 @@ class AgentReply:
     stop: str
     steps: int
     tool_calls: tuple[ToolTrace, ...] = ()
+    # True when the first answer failed the automatic check and the model was asked to redo it.
+    corrected: bool = False
 
 
 def _block_type(block: Any) -> str | None:
@@ -81,8 +92,14 @@ def _block_type(block: Any) -> str | None:
 
 
 def _is_user_turn(message: dict[str, Any]) -> bool:
-    """A message the person typed, as opposed to tool results sent back with the user role."""
-    return message["role"] == "user" and isinstance(message["content"], str)
+    """A message the person typed, as opposed to tool results or an automatic check, which are
+    also sent with the user role."""
+    content = message["content"]
+    return (
+        message["role"] == "user"
+        and isinstance(content, str)
+        and not content.startswith(AUTOMATIC_CHECK_PREFIX)
+    )
 
 
 def trim_history(messages: list[dict[str, Any]], max_turns: int) -> list[dict[str, Any]]:
@@ -112,25 +129,36 @@ class Agent:
         max_steps: int = 8,
         history_max_turns: int = 30,
         screen_outgoing: Callable[[str, Principal], str] | None = None,
+        reply_check: Callable[[str, str, list[dict[str, Any]]], list[str]] | None = reply_problems,
     ) -> None:
+        """``reply_check`` looks at a final answer before it is shown and returns instructions
+        when it should be redone (figures that came from no tool, or the wrong language). It is
+        called with the person's message, the reply, and the history. The model gets one chance
+        per turn to correct itself. Pass None to switch the check off."""
         if max_steps < 1:
             raise ValueError("max_steps must be at least 1")
         self._llm = llm
         self._max_steps = max_steps
         self._history_max_turns = history_max_turns
         self._screen_outgoing = screen_outgoing or (lambda text, principal: text)
+        self._reply_check = reply_check
 
     def respond(self, session: Session, registry: ToolRegistry, user_text: str) -> AgentReply:
         """Answer one user message, running tools as the model asks for them."""
         session.messages[:] = trim_history(session.messages, self._history_max_turns)
         session.messages.append({"role": "user", "content": user_text})
         traces: list[ToolTrace] = []
+        corrected = False
 
         def finish(text: str, stop: str, steps: int, *, record: bool = True) -> AgentReply:
             if record:
                 session.messages.append({"role": "assistant", "content": text})
-            shown = self._screen_outgoing(text, session.principal)
-            return AgentReply(text=shown, stop=stop, steps=steps, tool_calls=tuple(traces))
+            # The history keeps what the model wrote; only the copy shown to the person is
+            # tidied and screened.
+            shown = self._screen_outgoing(plain_text(text), session.principal)
+            return AgentReply(
+                text=shown, stop=stop, steps=steps, tool_calls=tuple(traces), corrected=corrected
+            )
 
         for step in range(1, self._max_steps + 1):
             try:
@@ -170,7 +198,31 @@ class Agent:
 
             if not response.text:
                 return finish(EMPTY_REPLY, "answered", step)
+
+            if self._reply_check is not None and not corrected:
+                problems = self._reply_check(user_text, response.text, session.messages)
+                if problems:
+                    # Keep the rejected answer in the history and ask for a better one. The
+                    # person never sees the rejected answer.
+                    corrected = True
+                    session.messages.append({"role": "assistant", "content": response.content})
+                    session.messages.append(
+                        {
+                            "role": "user",
+                            "content": f"{AUTOMATIC_CHECK_PREFIX} {' '.join(problems)} "
+                            "Do not mention this check to the person.",
+                        }
+                    )
+                    continue
+
             session.messages.append({"role": "assistant", "content": response.content})
-            return finish(response.text, "answered", step, record=False)
+            text = response.text
+            if corrected:
+                # A second answer is shown either way, but never silently with figures that
+                # still cannot be traced to the data.
+                unverified = ungrounded_figures(text, session.messages)
+                if unverified:
+                    text += UNVERIFIED_FIGURES_NOTE.format(figures=", ".join(unverified))
+            return finish(text, "answered", step, record=False)
 
         return finish(STEP_LIMIT_REPLY, "step_limit", self._max_steps)

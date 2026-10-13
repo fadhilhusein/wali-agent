@@ -286,6 +286,10 @@ class SimEnvironment:
         kind = ToolTimeout if timeout else ToolFailure
         self._forced_failures.setdefault(method, []).extend([kind] * times)
 
+    def clear_failures(self) -> None:
+        """Drop any targeted failures that were injected but not used up."""
+        self._forced_failures.clear()
+
     def _maybe_fail(self, method: str) -> None:
         """Runs before any state is read or changed, so a failed call never has side effects."""
         forced = self._forced_failures.get(method)

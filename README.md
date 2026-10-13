@@ -17,8 +17,9 @@ The project is being built in phases. This section lists only what exists and ha
 | 1 | Models, `FinancialEnvironment` interface, SQLite simulated environment with role scopes and failure injection, synthetic seed data with ground truth | Done |
 | 2 | Finance logic as pure functions: reconciliation, cash-flow forecast, recommendation candidates | Done |
 | 3 | Guard core: signed mandate, deterministic policy, one-time confirmation tokens, hash-chained audit log, guard service | Done |
-| 4 | Tool registry (exactly ten tools), hand-written agent loop, Anthropic SDK wrapper, CLI chat | Done, except the live check against the real model (needs an API key) |
-| 5 to 10 | Dialogue behaviours, sentinel, Telegram and web, evaluation, packaging | Not started |
+| 4 | Tool registry (exactly ten tools), hand-written agent loop, model wrappers (Anthropic SDK and OpenAI-compatible), CLI chat | Done. Run live on the OpenAI-compatible path only; the Anthropic path is tested without a live model |
+| 5 | Dialogue behaviours (periods, clarification, correction, vague references, fallback), full system prompt, automatic reply check, seed dialogues | Done |
+| 6 to 10 | Sentinel, Telegram and web, full evaluation, packaging | Not started |
 
 The full architecture description, third-party list, and demo script are added in phase 10.
 
@@ -58,6 +59,15 @@ uv run python scripts/live_check.py
 
 It runs a connection check and five chat scenarios in a temporary folder, and never prints the
 key. Add `--quick` for the connection check only.
+
+To run the seed dialogues in `eval/dialogues.yaml` against the real model (also spends credit):
+
+```bash
+uv run python -m eval.run_eval --suite dialogues
+```
+
+Add `--only D06 D07` to run some of them, and `--full` to print replies in full. Only the
+dialogue suite exists so far; tasks, attacks, and written reports come in phase 8.
 
 ## Chat locally
 

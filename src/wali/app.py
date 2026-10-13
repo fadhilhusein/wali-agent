@@ -17,6 +17,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from wali.agent.dialogue import is_correction
 from wali.agent.llm import AnthropicLLM, LLMClient, LLMError
 from wali.agent.llm_openai import OpenAICompatibleLLM
 from wali.agent.loop import Agent, AgentReply, Session
@@ -93,6 +94,9 @@ class WaliApp:
     def chat(self, principal: Principal, text: str, *, channel: str = "cli") -> ChatResult:
         """Answer one message from an authenticated principal."""
         session = self._session(principal, channel)
+        session.pending_proposals[:] = [
+            p for p in session.pending_proposals if self.guard.is_pending(p["proposal_id"])
+        ]
         registry = ToolRegistry(
             self.env,
             self.guard,
@@ -100,6 +104,8 @@ class WaliApp:
             today=self.today,
             session_id=session.session_id,
             reconcile_config=self.reconcile_config,
+            pending_proposals=session.pending_proposals,
+            replace_pending=is_correction(text),
         )
         reply = self._agent.respond(session, registry, text)
         return ChatResult(reply=reply, new_confirmations=tuple(self._collect()))
@@ -119,7 +125,11 @@ class WaliApp:
         """Requests this principal may confirm right now, oldest first."""
         self._collect()
         now = self.clock()
-        self._inbox = [request for request in self._inbox if request.expires_at > now]
+        self._inbox = [
+            request
+            for request in self._inbox
+            if request.expires_at > now and self.guard.is_pending(request.subject_id)
+        ]
         return [
             request
             for request in self._inbox

@@ -303,6 +303,12 @@ class GuardService:
             requests, self._outbox = self._outbox, []
             return requests
 
+    def is_pending(self, subject_id: str) -> bool:
+        """Whether a proposal or draft is still waiting for confirmation. It stops being so
+        when it is confirmed, declined, withdrawn, replaced, or expired."""
+        with self._lock:
+            return self._confirmations.has_pending(subject_id, self._now())
+
     # --- Payments: proposing -------------------------------------------------------------
 
     def propose_payment(
