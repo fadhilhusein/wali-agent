@@ -21,11 +21,12 @@ from wali.agent.dialogue import is_correction
 from wali.agent.llm import AnthropicLLM, LLMClient, LLMError
 from wali.agent.llm_openai import OpenAICompatibleLLM
 from wali.agent.loop import Agent, AgentReply, Session
-from wali.agent.prompts import build_system_prompt
+from wali.agent.prompts import SENTINEL_PROMPT, build_system_prompt, protected_texts
 from wali.config import Settings
 from wali.finance.reconcile import ReconcileConfig
 from wali.guard.audit import AuditLog
 from wali.guard.keys import public_key_of
+from wali.guard.sentinel import Sentinel
 from wali.guard.service import (
     ConfirmationRequest,
     GuardService,
@@ -62,14 +63,26 @@ class WaliApp:
     max_steps: int = 8
     history_max_turns: int = 30
     reconcile_config: ReconcileConfig = field(default_factory=ReconcileConfig)
+    # See Settings.sentinel_strict_turn.
+    strict_turn: bool = False
+    # Whether the sentinel's model layer is on, for an interface to show.
+    sentinel_model_enabled: bool = False
     _sessions: dict[tuple[str, str], Session] = field(default_factory=dict, repr=False)
     _inbox: list[ConfirmationRequest] = field(default_factory=list, repr=False)
     _session_counter: int = 0
 
     def __post_init__(self) -> None:
         self._agent = Agent(
-            self.llm, max_steps=self.max_steps, history_max_turns=self.history_max_turns
+            self.llm,
+            max_steps=self.max_steps,
+            history_max_turns=self.history_max_turns,
+            screen_outgoing=self._screen_reply,
         )
+
+    def _screen_reply(self, text: str, session: Session) -> str:
+        return self.guard.screen_outgoing(
+            text, session.principal, session_id=session.session_id
+        ).text
 
     def today(self) -> dt.date:
         return self.clock().date()
@@ -97,6 +110,15 @@ class WaliApp:
         session.pending_proposals[:] = [
             p for p in session.pending_proposals if self.guard.is_pending(p["proposal_id"])
         ]
+        # The message itself may carry pasted text that tries to steer the assistant. It
+        # cannot be withheld, so instead every payment proposed in this turn waits for the owner.
+        typed = self.guard.screen_untrusted(
+            text,
+            principal=principal,
+            session_id=session.session_id,
+            source="message",
+            origin="user_message",
+        )
         registry = ToolRegistry(
             self.env,
             self.guard,
@@ -104,6 +126,8 @@ class WaliApp:
             today=self.today,
             session_id=session.session_id,
             reconcile_config=self.reconcile_config,
+            suspicious=typed.suspicious,
+            strict_turn=self.strict_turn,
             pending_proposals=session.pending_proposals,
             replace_pending=is_correction(text),
         )
@@ -210,9 +234,20 @@ def build_llm(settings: Settings, model: str | None) -> LLMClient:
         raise SetupError(error.user_message) from None
 
 
-def build_app(settings: Settings, *, llm: LLMClient | None = None) -> WaliApp:
+SENTINEL_MAX_TOKENS = 4000
+
+
+def build_app(
+    settings: Settings,
+    *,
+    llm: LLMClient | None = None,
+    sentinel_llm: LLMClient | None = None,
+) -> WaliApp:
     """Build the application from settings. Raises ``SetupError`` with a plain instruction when
-    something needed is missing."""
+    something needed is missing.
+
+    The sentinel's model layer is on when ``WALI_SENTINEL_MODEL`` is set (or ``sentinel_llm`` is
+    given). Without it the sentinel still runs its built-in rules."""
     if settings.guard_private_key is None:
         raise SetupError(
             "No guard key is configured. Run: uv run python scripts/gen_guard_key.py --write-env"
@@ -241,6 +276,13 @@ def build_app(settings: Settings, *, llm: LLMClient | None = None) -> WaliApp:
     business_id, currency = env.business_id, env.currency
     clock = simulated_clock(today, settings.tz)
     env.use_clock(clock)
+    if sentinel_llm is None and settings.sentinel_model:
+        capped = min(settings.llm_max_tokens, SENTINEL_MAX_TOKENS)
+        sentinel_llm = build_llm(
+            settings.model_copy(update={"llm_max_tokens": capped}), settings.sentinel_model
+        )
+    sentinel = Sentinel(sentinel_llm, prompt=SENTINEL_PROMPT)
+    api_keys = (settings.anthropic_api_key, settings.llm_api_key)
     guard = GuardService(
         env,
         private_key,
@@ -251,6 +293,9 @@ def build_app(settings: Settings, *, llm: LLMClient | None = None) -> WaliApp:
         clock=clock,
         confirm_ttl_seconds=settings.confirm_token_ttl_seconds,
         proposals_per_hour=settings.proposals_per_hour,
+        sentinel=sentinel,
+        secrets=[key.get_secret_value() for key in api_keys if key is not None],
+        protected_texts=protected_texts(),
     )
     if llm is None:
         llm = build_llm(settings, settings.agent_model)
@@ -264,4 +309,6 @@ def build_app(settings: Settings, *, llm: LLMClient | None = None) -> WaliApp:
         max_steps=settings.agent_max_steps,
         history_max_turns=settings.history_max_turns,
         reconcile_config=ReconcileConfig.from_settings(settings),
+        strict_turn=settings.sentinel_strict_turn,
+        sentinel_model_enabled=sentinel.model_enabled,
     )

@@ -3,6 +3,7 @@ import datetime as dt
 import importlib.util
 import itertools
 import json
+import shutil
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -142,6 +143,48 @@ class ScriptedLLM:
         return step
 
 
+class ScreeningModel:
+    """A stand-in for the sentinel's screening model. ``judge`` gets the text of each item it
+    is asked about and returns the categories to report (none means not suspicious).
+    ``reply`` overrides the whole answer: a string, or a function of the items."""
+
+    def __init__(self, judge=lambda text: (), *, reply=None, error=None, stop_reason="end_turn"):
+        self.judge = judge
+        self.reply = reply
+        self.error = error
+        self.stop_reason = stop_reason
+        self.requests: list[dict] = []
+        self.asked: list[str] = []
+
+    @staticmethod
+    def items_of(request_text: str) -> list[dict]:
+        listing = request_text.split(">>>\n", 1)[1].split("\n<<<END", 1)[0]
+        return json.loads(listing)
+
+    def complete(self, *, system, messages, tools) -> LLMResponse:
+        self.requests.append({"system": system, "messages": messages, "tools": tools})
+        items = self.items_of(messages[0]["content"])
+        self.asked += [item["text"] for item in items]
+        if self.error is not None:
+            raise self.error
+        if self.reply is not None:
+            text = self.reply(items) if callable(self.reply) else self.reply
+        else:
+            answers = []
+            for item in items:
+                categories = list(self.judge(item["text"]))
+                answers.append(
+                    {
+                        "id": item["id"],
+                        "suspicious": bool(categories),
+                        "categories": categories,
+                        "reasons": ["REASON-FROM-THE-MODEL"] if categories else [],
+                    }
+                )
+            text = json.dumps({"items": answers})
+        return LLMResponse(stop_reason=self.stop_reason, text=text, tool_calls=(), content=[])
+
+
 def tool_results(request: dict) -> list[dict]:
     """The decoded tool results in the last message of a recorded request."""
     return [json.loads(block["content"]) for block in request["messages"][-1]["content"]]
@@ -171,49 +214,83 @@ def audit_log(tmp_path) -> AuditLog:
 
 
 @pytest.fixture
-def world(make_env, guard_keys, clock, audit_log):
-    """A simulated environment and a guard wired together on one controllable clock."""
-    env = make_env(clock=clock)
-    store = GuardStore()
+def make_world(make_env, guard_keys, clock, audit_log):
+    """Build a simulated environment and a guard wired together on one controllable clock.
+    ``seed_dir`` selects other seed data; the remaining options go to the guard."""
 
-    def make_guard(**options) -> GuardService:
-        return GuardService(
-            env,
-            guard_keys[0],
-            audit_log,
-            business_id=env.business_id,
-            currency=env.currency,
-            store=store,
-            clock=clock,
-            **options,
-        )
+    def factory(seed_dir: Path = SEED_DIR, **guard_options) -> SimpleNamespace:
+        env = make_env(seed_dir=seed_dir, clock=clock)
+        store = GuardStore()
 
-    guard = make_guard()
+        def make_guard(**options) -> GuardService:
+            return GuardService(
+                env,
+                guard_keys[0],
+                audit_log,
+                business_id=env.business_id,
+                currency=env.currency,
+                store=store,
+                clock=clock,
+                **{**guard_options, **options},
+            )
 
-    def make_registry(principal: Principal, **options) -> ToolRegistry:
-        return ToolRegistry(env, guard, principal, today=lambda: clock().date(), **options)
+        guard = make_guard()
 
-    def make_app(llm, **options) -> WaliApp:
-        return WaliApp(
+        def make_registry(principal: Principal, **options) -> ToolRegistry:
+            return ToolRegistry(env, guard, principal, today=lambda: clock().date(), **options)
+
+        def make_app(llm, **options) -> WaliApp:
+            return WaliApp(
+                env=env,
+                guard=guard,
+                llm=llm,
+                business_id=env.business_id,
+                currency=env.currency,
+                clock=clock,
+                **options,
+            )
+
+        return SimpleNamespace(
             env=env,
-            guard=guard,
-            llm=llm,
-            business_id=env.business_id,
-            currency=env.currency,
+            store=store,
+            audit=audit_log,
             clock=clock,
-            **options,
+            guard=guard,
+            make_guard=make_guard,
+            make_registry=make_registry,
+            make_app=make_app,
         )
 
-    return SimpleNamespace(
-        env=env,
-        store=store,
-        audit=audit_log,
-        clock=clock,
-        guard=guard,
-        make_guard=make_guard,
-        make_registry=make_registry,
-        make_app=make_app,
-    )
+    return factory
+
+
+@pytest.fixture
+def world(make_world):
+    """A simulated environment and a guard on the committed seed data."""
+    return make_world()
+
+
+@pytest.fixture
+def edit_seed(tmp_path):
+    """A private copy of the seed data that a test may change. ``edit_seed(name, change)``
+    calls ``change(row)`` for every row of one CSV file and returns the folder."""
+    folder = tmp_path / "seed"
+    shutil.copytree(SEED_DIR, folder)
+
+    def edit(name: str, change) -> Path:
+        path = folder / f"{name}.csv"
+        with path.open(encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            fields, rows = reader.fieldnames, list(reader)
+        for row in rows:
+            change(row)
+        with path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=fields)
+            writer.writeheader()
+            writer.writerows(rows)
+        return folder
+
+    return edit
 
 
 @pytest.fixture
@@ -280,9 +357,9 @@ def make_env(guard_keys, now):
     """Build fresh in-memory environments from the committed seed data."""
     created = []
 
-    def factory(**options) -> SimEnvironment:
+    def factory(seed_dir: Path = SEED_DIR, **options) -> SimEnvironment:
         options.setdefault("clock", lambda: now)
-        env = SimEnvironment.create(SEED_DIR, guard_keys[1], **options)
+        env = SimEnvironment.create(seed_dir, guard_keys[1], **options)
         created.append(env)
         return env
 

@@ -51,6 +51,7 @@ _ENV_TO_FIELD: dict[str, str] = {
     "WALI_AGENT_MAX_STEPS": "agent_max_steps",
     "WALI_CONFIRM_TOKEN_TTL_SECONDS": "confirm_token_ttl_seconds",
     "WALI_PROPOSALS_PER_HOUR": "proposals_per_hour",
+    "WALI_SENTINEL_STRICT_TURN": "sentinel_strict_turn",
     "MANUAL_MINUTES_PER_ITEM": "manual_minutes_per_item",
 }
 _FIELD_TO_ENV = {field: env for env, field in _ENV_TO_FIELD.items()}
@@ -120,6 +121,9 @@ class Settings(BaseModel):
     agent_max_steps: int = Field(8, ge=1, le=50)
     confirm_token_ttl_seconds: int = Field(300, ge=1, le=3600)
     proposals_per_hour: int = Field(10, ge=1)
+    # False: text flagged in a record makes payments for THAT invoice or supplier wait for the
+    # owner. True: it also makes every payment in the same conversation turn wait.
+    sentinel_strict_turn: bool = False
 
     # PLACEHOLDER until the finance analyst supplies a figure from real interviews.
     manual_minutes_per_item: Decimal = Field(Decimal("5"), gt=0)

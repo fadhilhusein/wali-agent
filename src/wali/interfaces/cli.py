@@ -98,6 +98,11 @@ def run_cli(
 
     output_fn("Wali (simulation, synthetic data). Type /help for commands.")
     output_fn(f"You are: {principal.role} ({principal.user_id})")
+    if not app.sentinel_model_enabled:
+        output_fn(
+            "(Screening of outside text runs on built-in rules only. Set WALI_SENTINEL_MODEL "
+            "to add the model check.)"
+        )
 
     while True:
         try:
@@ -111,6 +116,8 @@ def run_cli(
         if not line.startswith("/"):
             result = app.chat(principal, line)
             output_fn(f"wali> {result.reply.text}")
+            if result.reply.blocked:
+                output_fn("(The assistant's answer was blocked by the outgoing check.)")
             for request in result.new_confirmations:
                 if request.required_role != principal.role:
                     output_fn(

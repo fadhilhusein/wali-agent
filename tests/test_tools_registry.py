@@ -41,7 +41,9 @@ SEPTEMBER = {"start": "2026-09-01", "end": "2026-09-30"}
 def data(outcome):
     assert not outcome.is_error, outcome.content
     body = json.loads(outcome.content)
-    assert list(body) == ["untrusted_data"]
+    # Data is always inside the wrapper. The only thing allowed beside it is the registry's
+    # own note that some text was withheld.
+    assert set(body) <= {"untrusted_data", "screening"}
     return body["untrusted_data"]
 
 
@@ -461,7 +463,7 @@ def test_propose_payment_refusals_come_back_as_results(ready, bookkeeper, ground
 
 
 def test_a_suspicious_turn_makes_even_a_small_payment_wait(ready, bookkeeper, owner, ground_truth):
-    tools = ready.make_registry(bookkeeper, is_suspicious=lambda: True)
+    tools = ready.make_registry(bookkeeper, suspicious=True)
     small = small_invoice(ready, owner, ground_truth)
 
     result = data(tools.execute("propose_payment", {"invoice_id": small.id}))

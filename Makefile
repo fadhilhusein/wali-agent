@@ -1,5 +1,5 @@
 # Convenience targets. On machines without make, run the uv commands directly (see README.md).
-.PHONY: install test lint format key seed chat live-check eval-dialogues
+.PHONY: install test lint format key seed chat live-check eval-dialogues eval-sentinel
 
 install:
 	uv sync
@@ -31,3 +31,7 @@ live-check:
 # Talks to the REAL model and spends a little credit.
 eval-dialogues:
 	uv run python -m eval.run_eval --suite dialogues
+
+# Talks to the REAL screening model and spends a little credit.
+eval-sentinel:
+	uv run python -m eval.run_eval --suite sentinel

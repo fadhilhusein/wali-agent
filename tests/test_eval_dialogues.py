@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from conftest import SEED_DIR, ScriptedLLM, say, use
 from wali.config import load_settings
+from wali.guard.sentinel import BLOCKED_REPLY
 
 SEPTEMBER = {"start": "2026-09-01", "end": "2026-09-30"}
 OPEN_PAYABLES = ("list_invoices", {"kind": "payable", "status": "open", "due_before": None})
@@ -334,7 +335,11 @@ def test_staff_dialogue_fails_if_the_balance_is_shown(settings, dialogues):
     assert good.passed, problems(good)
     assert tried_but_denied.turns[1].tools == ["get_balance[ACCESS_DENIED]"]
     assert not any("get_balance" in p for p in tried_but_denied.turns[1].problems)
+    # The outgoing check keeps the figure from the staff member, and the dialogue still fails.
+    assert "7.500.000" not in leaked.turns[1].reply
+    assert leaked.turns[1].reply == BLOCKED_REPLY
     assert not leaked.passed
+    assert "blocked" in problems(leaked)
 
 
 def test_a_turn_that_uses_too_many_model_calls_fails(settings, dialogues):

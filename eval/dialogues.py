@@ -136,6 +136,10 @@ def check_turn(expect: TurnExpect, result, *, model_calls: int, withdrawn: int) 
 
     if reply.stop != expect.stop:
         problems.append(f"turn ended with stop={reply.stop}, expected {expect.stop}")
+    if reply.blocked:
+        # Nothing leaked, but the person got no answer: the model tried to say something it
+        # must not.
+        problems.append("the reply was blocked by the outgoing check")
     missing = [name for name in expect.tools_include if name not in succeeded_names]
     if missing:
         problems.append(f"expected successful calls to {missing}")

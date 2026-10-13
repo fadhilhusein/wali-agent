@@ -188,7 +188,8 @@ class PolicyView:
     already_paid: bool
     proposals_last_hour: int
     proposals_per_hour: int
-    # True when untrusted text in this conversation turn looked like injected instructions.
+    # True when untrusted text looked like injected instructions: in this conversation
+    # turn, or in the invoice or supplier record being paid.
     suspicious: bool = False
 
 
@@ -355,8 +356,8 @@ def _evaluate(
             RiskWarning(
                 code="INJECTION_SUSPECTED",
                 message=(
-                    "Text in this conversation looked like an attempt to give me instructions. "
-                    "Check this payment carefully."
+                    "Text in this conversation or on this invoice looked like an attempt to "
+                    "give the assistant instructions. Check this payment carefully."
                 ),
             )
         )

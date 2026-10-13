@@ -248,8 +248,8 @@ def test_history_only_ever_grows_and_the_prompt_and_tools_never_change(session, 
 def test_the_outgoing_screen_sees_every_reply(session, tools):
     seen = []
 
-    def screen(text, principal):
-        seen.append((text, principal.role))
+    def screen(text, session):
+        seen.append((text, session.principal.role))
         return "[screened]"
 
     agent = Agent(ScriptedLLM(say("Jawaban asli."), say("", "refusal")), screen_outgoing=screen)

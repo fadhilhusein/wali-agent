@@ -132,3 +132,19 @@ def test_errors_carry_a_plain_message(store):
         store.redeem("nope", OWNER, "payment", T0)
 
     assert "Nothing was changed" in excinfo.value.user_message
+
+
+def test_is_live_token_recognises_only_tokens_that_can_still_be_redeemed(store):
+    token = issue(store)
+    other = issue(store, subject_id="p-2")
+
+    assert store.is_live_token(token)
+    assert not store.is_live_token(token[:-1])
+    assert not store.is_live_token("")
+    assert not store.is_live_token(None)
+
+    # Looking does not consume anything.
+    store.redeem(token, OWNER, "payment", T0)
+    store.void_subject("p-2")
+    assert not store.is_live_token(token)
+    assert not store.is_live_token(other)

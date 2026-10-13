@@ -14,20 +14,26 @@ Flow of a payment:
                                      -> environment pays
 
 Every public method fails closed: an unexpected error is logged and reported as a refusal.
+
+The service also runs the sentinel. ``screen_records`` and ``screen_untrusted`` look at text from
+outside the business before a model sees it; ``screen_outgoing`` looks at a reply before a person
+sees it. A screening result can make the guard more careful. It can never make it less so.
 """
 
 from __future__ import annotations
 
 import contextlib
 import datetime as dt
+import hashlib
+import re
 import secrets
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import AwareDatetime, Field, ValidationError
+from pydantic import AwareDatetime, BaseModel, Field, ValidationError
 
 from wali.guard.audit import AuditLog
 from wali.guard.confirm import (
@@ -59,6 +65,15 @@ from wali.guard.policy import (
     check_authority,
     evaluate,
 )
+from wali.guard.sentinel import (
+    BLOCKED_REPLY,
+    SCREENING_FAILED,
+    WITHHELD_TEXT,
+    OutgoingScreen,
+    Sentinel,
+    Source,
+    Verdict,
+)
 from wali.guard.signing import sign_payload
 from wali.guard.store import GuardStore, ReviewItem
 from wali.models import (
@@ -80,6 +95,30 @@ from wali.models import (
 from wali.tools.base import AccessDenied, FinancialEnvironment, NotFound, ToolFailure
 
 MAX_REVIEW_REASON_LENGTH = 500
+MAX_AUDIT_EXCERPT_CHARS = 160
+# Fields that identify or classify a record. Every other text field of a record read from the
+# environment is free text from outside the business and gets screened, so a field added to a
+# model later is covered without anyone remembering to list it.
+STRUCTURAL_FIELDS = frozenset(
+    {
+        "id",
+        "business_id",
+        "invoice_id",
+        "counterparty_id",
+        "currency",
+        "kind",
+        "status",
+        "direction",
+        "verified_account",
+        "stated_account",
+        "registered_account",
+    }
+)
+ACCOUNT_FIELDS = ("verified_account", "stated_account")
+# What an identifier looks like. A structural field holding anything else (spaces, a sentence)
+# is treated as free text after all.
+_IDENTIFIER = re.compile(r"[\w.:/#*+-]{1,64}")
+_DIGIT = re.compile(r"\d")
 BOOK_CATEGORY_FOR_PAYMENTS = "supplier_payment"
 
 _INTERNAL_ERROR = (
@@ -171,6 +210,33 @@ class ConfirmationRequest(Model):
     risk_warnings: list[RiskWarning] = Field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class ScreenedRecords:
+    """Records after screening. ``value`` has the same shape as what went in, with flagged
+    text replaced by a placeholder."""
+
+    value: Any
+    # Fields whose text was replaced.
+    withheld: int = 0
+    # True when some text could not be screened by the model layer. It is passed on, but the
+    # turn then counts as suspicious.
+    unscreened: bool = False
+    categories: tuple[str, ...] = ()
+
+    @property
+    def suspicious(self) -> bool:
+        return self.withheld > 0 or self.unscreened
+
+
+class OutgoingResult(Model):
+    """A reply after the outgoing check: the text to show, which is a fixed safe message when
+    the original was blocked."""
+
+    text: str
+    blocked: bool = False
+    categories: tuple[str, ...] = ()
+
+
 @dataclass
 class _PendingPayment:
     proposal: PaymentProposal
@@ -207,8 +273,20 @@ class GuardService:
         confirm_ttl_seconds: int = 300,
         approval_ttl_seconds: int = 60,
         proposals_per_hour: int = 10,
+        sentinel: Sentinel | None = None,
+        secrets: Iterable[str] = (),
+        protected_texts: Iterable[str] = (),
     ) -> None:
+        """``sentinel`` screens untrusted text; without one, only the built-in rules run.
+        ``secrets`` are values that must never appear in a reply (API keys and the like; the
+        signing key is always included). ``protected_texts`` are prompts that must not be
+        repeated to a user."""
         self._env = env
+        self._sentinel = sentinel or Sentinel()
+        self._outgoing = OutgoingScreen(
+            secrets=[private_key, *secrets], protected_texts=protected_texts
+        )
+        self._logged_verdicts: set[tuple[str, str]] = set()
         self._private_key = load_private_key(private_key)
         self._public_key = self._private_key.public_key()
         self._audit_log = audit
@@ -309,6 +387,158 @@ class GuardService:
         with self._lock:
             return self._confirmations.has_pending(subject_id, self._now())
 
+    # --- Screening -----------------------------------------------------------------------
+
+    def _log_verdict(
+        self,
+        verdict: Verdict,
+        text: str,
+        principal: Principal | None,
+        session_id: str,
+        **where: Any,
+    ) -> None:
+        """Write a suspicious verdict to the audit log, once per text and session."""
+        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        if (session_id, digest) in self._logged_verdicts:
+            return
+        if len(self._logged_verdicts) > 10_000:
+            self._logged_verdicts.clear()
+        self._logged_verdicts.add((session_id, digest))
+        self.audit_event(
+            "sentinel_verdict",
+            principal,
+            session_id=session_id,
+            categories=list(verdict.categories),
+            layers=list(verdict.layers),
+            reasons=list(verdict.reasons),
+            withheld=verdict.withhold,
+            text_sha256=digest,
+            # Digits are masked: the log must never hold a full account number.
+            excerpt=_DIGIT.sub("#", text[:MAX_AUDIT_EXCERPT_CHARS]),
+            **{key: value for key, value in where.items() if value},
+        )
+
+    def screen_untrusted(
+        self,
+        text: str,
+        *,
+        principal: Principal | None = None,
+        session_id: str = "",
+        source: Source = "data",
+        origin: str = "",
+    ) -> Verdict:
+        """Screen one piece of text that came from outside. ``source`` is "message" for what
+        a person typed into the chat. Never raises: text that cannot be screened is reported
+        as suspicious."""
+        try:
+            verdict = self._sentinel.screen([text], source=source)[0]
+        except Exception:
+            self._audit_error("screen_untrusted", principal, session_id)
+            verdict = SCREENING_FAILED
+        if verdict.suspicious:
+            self._log_verdict(verdict, text, principal, session_id, origin=origin, source=source)
+        return verdict
+
+    def screen_records(
+        self,
+        value: Any,
+        *,
+        principal: Principal | None = None,
+        session_id: str = "",
+        origin: str = "",
+    ) -> ScreenedRecords:
+        """Screen every free-text field of one record or a list of records read from the
+        environment, and return copies in which flagged text is replaced by a placeholder.
+        What a model is shown must come from here, never from the environment directly."""
+        records = value if isinstance(value, list) else [value]
+        slots: list[tuple[int, str, str]] = []
+        for index, record in enumerate(records):
+            if not isinstance(record, BaseModel):
+                continue
+            for name, content in record:
+                if not isinstance(content, str) or not content.strip():
+                    continue
+                if name in ACCOUNT_FIELDS:
+                    self._outgoing.add_account(content)
+                if name not in STRUCTURAL_FIELDS or not _IDENTIFIER.fullmatch(content):
+                    slots.append((index, name, content))
+        if not slots:
+            return ScreenedRecords(value)
+        try:
+            verdicts = self._sentinel.screen([content for _, _, content in slots])
+        except Exception:
+            self._audit_error("screen_records", principal, session_id)
+            verdicts = [SCREENING_FAILED] * len(slots)
+
+        updates: dict[int, dict[str, str]] = {}
+        categories: dict[str, None] = {}
+        withheld, unscreened = 0, False
+        for (index, name, content), verdict in zip(slots, verdicts, strict=True):
+            if not verdict.suspicious:
+                continue
+            self._log_verdict(
+                verdict,
+                content,
+                principal,
+                session_id,
+                origin=origin,
+                record_id=getattr(records[index], "id", None),
+                field=name,
+            )
+            categories.update(dict.fromkeys(verdict.categories))
+            if verdict.withhold:
+                updates.setdefault(index, {})[name] = WITHHELD_TEXT
+                withheld += 1
+            else:
+                unscreened = True
+        cleaned = [
+            record.model_copy(update=updates[index]) if index in updates else record
+            for index, record in enumerate(records)
+        ]
+        return ScreenedRecords(
+            value=cleaned if isinstance(value, list) else cleaned[0],
+            withheld=withheld,
+            unscreened=unscreened,
+            categories=tuple(categories),
+        )
+
+    def screen_outgoing(
+        self, text: str, principal: Principal, *, session_id: str = ""
+    ) -> OutgoingResult:
+        """Check a reply before it is shown to ``principal``. A reply that carries key
+        material, a raw token, system prompt text, a full account number, or data outside
+        the principal's role is replaced by a fixed safe message. Never raises."""
+        try:
+            verdict = self._outgoing.check(
+                text, principal.role, is_live_token=self._confirmations.is_live_token
+            )
+            if verdict.allowed:
+                return OutgoingResult(text=text)
+            categories = verdict.categories
+        except Exception:
+            self._audit_error("screen_outgoing", principal, session_id)
+            categories = ("internal_error",)
+        # The blocked text is not written to the log: it may hold the very thing being kept in.
+        self.audit_event(
+            "output_blocked",
+            principal,
+            session_id=session_id,
+            categories=list(categories),
+            length=len(text),
+            text_sha256=hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        )
+        return OutgoingResult(text=BLOCKED_REPLY, blocked=True, categories=categories)
+
+    def screening_stats(self) -> dict[str, int]:
+        """Counters of the screening model's use: calls made, calls that gave no usable
+        answer, and texts left to the rules alone because there were too many."""
+        return dict(self._sentinel.stats)
+
+    def _for_model(self, summary: PaymentSummary, session_id: str) -> PaymentSummary:
+        """The summary as a tool may see it: names from the records are screened first. The
+        owner's confirmation screen gets the real names."""
+        return self.screen_records(summary, session_id=session_id, origin="guard").value
+
     # --- Payments: proposing -------------------------------------------------------------
 
     def propose_payment(
@@ -361,7 +591,7 @@ class GuardService:
             invoice_id=proposal.invoice_id,
             suspicious=suspicious,
         )
-        decision, view = self._decide(proposal, principal, now, suspicious, earlier)
+        decision, view = self._decide(proposal, principal, now, suspicious, earlier, session_id)
 
         if isinstance(decision, Deny):
             return self._denied(proposal, principal, decision, now, session_id)
@@ -378,6 +608,7 @@ class GuardService:
         now: dt.datetime,
         suspicious: bool,
         proposals_last_hour: int,
+        session_id: str = "",
     ) -> tuple[Decision, PolicyView | None]:
         """Run the policy. The environment is read only after the mandate and role checks
         pass, so a principal who may not propose learns nothing from it."""
@@ -388,7 +619,9 @@ class GuardService:
         if refused is not None:
             return refused, None
         try:
-            view = self._build_view(proposal, principal, now, suspicious, proposals_last_hour)
+            view = self._build_view(
+                proposal, principal, now, suspicious, proposals_last_hour, session_id
+            )
         except AccessDenied:
             return Deny(
                 reason_code="ROLE_NOT_ALLOWED",
@@ -405,6 +638,7 @@ class GuardService:
         now: dt.datetime,
         suspicious: bool,
         proposals_last_hour: int,
+        session_id: str = "",
     ) -> PolicyView:
         payables: list[Invoice] = self._read(self._env.list_invoices, principal, "payable")
         invoice = next((i for i in payables if i.id == proposal.invoice_id), None)
@@ -421,6 +655,15 @@ class GuardService:
                 if i.counterparty_id == invoice.counterparty_id and i.id != invoice.id
             )
         balance: Money = self._read(self._env.get_balance, principal)
+        # The verdict belongs to the content: an invoice or supplier whose own text looks like
+        # an injected instruction is paid only with the owner's confirmation, in any turn.
+        own_text = self.screen_records(
+            [record for record in (invoice, supplier) if record is not None],
+            principal=principal,
+            session_id=session_id,
+            origin="propose_payment",
+        )
+        suspicious = suspicious or own_text.suspicious
         return PolicyView(
             public_key=self._public_key,
             business_id=self._business_id,
@@ -553,7 +796,7 @@ class GuardService:
                 "Nothing has been paid yet. This payment needs the owner's confirmation, "
                 "and the request has been sent to the owner."
             ),
-            summary=summary,
+            summary=self._for_model(summary, session_id),
             risk_warnings=decision.risk_warnings,
             required_role=decision.required_role,
         )
@@ -619,11 +862,16 @@ class GuardService:
             self._audit(
                 "payment_rejected", proposer, now, session_id, message=result.message, **common
             )
+            # The environment's own words are outside text too.
+            said = self.screen_untrusted(
+                result.message, principal=proposer, session_id=session_id, origin="execute_payment"
+            )
+            detail = "" if said.withhold else f" {result.message}"
             return PaymentDecision(
                 status="failed",
                 proposal_id=proposal.proposal_id,
                 reason_code="ENVIRONMENT_REJECTED",
-                user_message=f"The payment was not accepted and nothing was paid. {result.message}",
+                user_message=f"The payment was not accepted and nothing was paid.{detail}",
             )
 
         # The money has moved. Nothing below may turn this into a reported failure.
@@ -675,15 +923,16 @@ class GuardService:
                 self._audit_error("record_book_entry", proposer, session_id)
                 notes.append("The books entry could not be recorded. Please add it by hand.")
 
+        shown = self._for_model(summary, session_id)
         message = (
-            f"Paid {_money(terms.amount, terms.currency)} for invoice {summary.invoice_number} "
-            f"to the registered account of {summary.supplier_name}."
+            f"Paid {_money(terms.amount, terms.currency)} for invoice {shown.invoice_number} "
+            f"to the registered account of {shown.supplier_name}."
         )
         return PaymentDecision(
             status="executed",
             proposal_id=proposal.proposal_id,
             user_message=" ".join([message, *notes]),
-            summary=summary,
+            summary=shown,
             transaction_id=result.transaction_id,
         )
 
@@ -730,7 +979,9 @@ class GuardService:
         proposal = pending.proposal
 
         # Judge the proposal again, as its original proposer, on what is true right now.
-        decision, view = self._decide(proposal, pending.proposer, now, pending.suspicious, 0)
+        decision, view = self._decide(
+            proposal, pending.proposer, now, pending.suspicious, 0, session_id
+        )
         if isinstance(decision, Deny):
             return self._denied(proposal, pending.proposer, decision, now, session_id)
         if decision.terms.digest() != item.subject_hash:
@@ -1161,7 +1412,9 @@ class GuardService:
                 )
                 return BookEntryDecision(
                     status="recorded",
-                    entry=recorded,
+                    entry=self.screen_records(
+                        recorded, principal=principal, session_id=session_id, origin="guard"
+                    ).value,
                     user_message="The entry is recorded in the books. No money was moved.",
                 )
             except Exception:

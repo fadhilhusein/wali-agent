@@ -117,6 +117,11 @@ class ConfirmationStore:
         self._pending = {k: v for k, v in self._pending.items() if v.subject_id != subject_id}
         return len(self._pending) != before
 
+    def is_live_token(self, candidate: object) -> bool:
+        """Whether this exact string is a token that could still be redeemed. Used to keep a
+        token out of a chat reply; it consumes nothing."""
+        return _key(candidate) in self._pending
+
     def has_pending(self, subject_id: str, now: dt.datetime) -> bool:
         return any(
             v.subject_id == subject_id and v.expires_at > now for v in self._pending.values()

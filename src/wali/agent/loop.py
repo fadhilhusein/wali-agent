@@ -16,6 +16,7 @@ reasoning blocks from the turns it keeps, as that situation requires.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -54,6 +55,9 @@ ACTION_TOOLS = frozenset(
     {"propose_payment", "propose_mandate", "record_book_entry", "flag_for_review"}
 )
 _THINKING_TYPES = ("thinking", "redacted_thinking")
+# The marker of the system's own checker. A person typing it gets it defused, so that their
+# message can never pass as one from the checker.
+_CHECK_MARKER = re.compile(r"\[\s*automatic\s+check\s*\]", re.IGNORECASE)
 
 
 @dataclass
@@ -85,6 +89,8 @@ class AgentReply:
     tool_calls: tuple[ToolTrace, ...] = ()
     # True when the first answer failed the automatic check and the model was asked to redo it.
     corrected: bool = False
+    # True when the outgoing screen replaced the answer with a safe message.
+    blocked: bool = False
 
 
 def _block_type(block: Any) -> str | None:
@@ -128,23 +134,27 @@ class Agent:
         *,
         max_steps: int = 8,
         history_max_turns: int = 30,
-        screen_outgoing: Callable[[str, Principal], str] | None = None,
+        screen_outgoing: Callable[[str, Session], str] | None = None,
         reply_check: Callable[[str, str, list[dict[str, Any]]], list[str]] | None = reply_problems,
     ) -> None:
         """``reply_check`` looks at a final answer before it is shown and returns instructions
         when it should be redone (figures that came from no tool, or the wrong language). It is
         called with the person's message, the reply, and the history. The model gets one chance
-        per turn to correct itself. Pass None to switch the check off."""
+        per turn to correct itself. Pass None to switch the check off.
+
+        ``screen_outgoing`` gets every reply, with its session, just before it is shown, and
+        returns the text to show instead."""
         if max_steps < 1:
             raise ValueError("max_steps must be at least 1")
         self._llm = llm
         self._max_steps = max_steps
         self._history_max_turns = history_max_turns
-        self._screen_outgoing = screen_outgoing or (lambda text, principal: text)
+        self._screen_outgoing = screen_outgoing or (lambda text, session: text)
         self._reply_check = reply_check
 
     def respond(self, session: Session, registry: ToolRegistry, user_text: str) -> AgentReply:
         """Answer one user message, running tools as the model asks for them."""
+        user_text = _CHECK_MARKER.sub("(automatic check)", user_text)
         session.messages[:] = trim_history(session.messages, self._history_max_turns)
         session.messages.append({"role": "user", "content": user_text})
         traces: list[ToolTrace] = []
@@ -155,9 +165,15 @@ class Agent:
                 session.messages.append({"role": "assistant", "content": text})
             # The history keeps what the model wrote; only the copy shown to the person is
             # tidied and screened.
-            shown = self._screen_outgoing(plain_text(text), session.principal)
+            candidate = plain_text(text)
+            shown = self._screen_outgoing(candidate, session)
             return AgentReply(
-                text=shown, stop=stop, steps=steps, tool_calls=tuple(traces), corrected=corrected
+                text=shown,
+                stop=stop,
+                steps=steps,
+                tool_calls=tuple(traces),
+                corrected=corrected,
+                blocked=shown != candidate,
             )
 
         for step in range(1, self._max_steps + 1):

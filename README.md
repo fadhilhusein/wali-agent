@@ -19,7 +19,8 @@ The project is being built in phases. This section lists only what exists and ha
 | 3 | Guard core: signed mandate, deterministic policy, one-time confirmation tokens, hash-chained audit log, guard service | Done |
 | 4 | Tool registry (exactly ten tools), hand-written agent loop, model wrappers (Anthropic SDK and OpenAI-compatible), CLI chat | Done. Run live on the OpenAI-compatible path only; the Anthropic path is tested without a live model |
 | 5 | Dialogue behaviours (periods, clarification, correction, vague references, fallback), full system prompt, automatic reply check, seed dialogues | Done |
-| 6 to 10 | Sentinel, Telegram and web, full evaluation, packaging | Not started |
+| 6 | Sentinel: screening of outside text (rules plus a separate model call), withholding of flagged text, outgoing leak check | Done. The model check was run live on the OpenAI-compatible path only |
+| 7 to 10 | Telegram and web, full evaluation, packaging | Not started |
 
 The full architecture description, third-party list, and demo script are added in phase 10.
 
@@ -66,8 +67,37 @@ To run the seed dialogues in `eval/dialogues.yaml` against the real model (also 
 uv run python -m eval.run_eval --suite dialogues
 ```
 
-Add `--only D06 D07` to run some of them, and `--full` to print replies in full. Only the
-dialogue suite exists so far; tasks, attacks, and written reports come in phase 8.
+Add `--only D06 D07` to run some of them, and `--full` to print replies in full.
+
+To measure the sentinel on the texts in `eval/sentinel_seeds.yaml` (one or two model calls):
+
+```bash
+uv run python -m eval.run_eval --suite sentinel
+```
+
+Tasks, attacks, and written reports come in phase 8.
+
+## Screening (the sentinel)
+
+Text from outside the business (invoice documents, bank memos, supplier names, pasted emails)
+is screened before the assistant's model sees it:
+
+1. Built-in rules look for injected instructions, announced bank account changes, urgent
+   transfer demands, requests to skip confirmation, hidden characters, and encoded strings.
+2. If `WALI_SENTINEL_MODEL` is set, a separate model call with no tools looks at what the rules
+   passed. Leave it empty to run on the rules only.
+
+Flagged text is replaced by a placeholder, so the assistant cannot act on it, and a payment for
+the invoice or supplier it belongs to waits for the owner. A finding can only add that step; it
+never approves or refuses anything. Set `WALI_SENTINEL_STRICT_TURN=true` to make every payment
+in the same turn wait as well.
+
+Every reply is checked before it is shown. A reply carrying a key, a token, system prompt text,
+a full bank account number, or figures a staff member may not see is replaced by a fixed
+message.
+
+These checks are a second line of defence. Payments are kept safe by the guard's fixed rules,
+whatever any model says.
 
 ## Chat locally
 
