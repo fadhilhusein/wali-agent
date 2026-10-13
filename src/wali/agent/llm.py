@@ -25,12 +25,17 @@ REFUSAL_FALLBACK_BETA = "server-side-fallback-2026-07-01"
 
 class LLMError(RuntimeError):
     """The model could not be reached or refused the request shape. ``user_message`` is safe
-    to show; it never contains a key or a raw server response."""
+    to show; it never contains a key or a raw server response.
 
-    def __init__(self, user_message: str, *, retryable: bool) -> None:
+    ``detail`` is for developers only (status code and the provider's own error text). It is
+    never shown to a chat user and never contains the API key.
+    """
+
+    def __init__(self, user_message: str, *, retryable: bool, detail: str | None = None) -> None:
         super().__init__(user_message)
         self.user_message = user_message
         self.retryable = retryable
+        self.detail = detail
 
 
 @dataclass(frozen=True)

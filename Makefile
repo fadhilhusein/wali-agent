@@ -1,5 +1,5 @@
 # Convenience targets. On machines without make, run the uv commands directly (see README.md).
-.PHONY: install test lint format key seed chat
+.PHONY: install test lint format key seed chat live-check
 
 install:
 	uv sync
@@ -23,3 +23,7 @@ seed:
 
 chat:
 	uv run python -m wali.interfaces.cli --role owner
+
+# Talks to the REAL model and spends a little credit.
+live-check:
+	uv run python scripts/live_check.py

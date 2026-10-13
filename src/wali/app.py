@@ -17,7 +17,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from wali.agent.llm import AnthropicLLM, LLMClient
+from wali.agent.llm import AnthropicLLM, LLMClient, LLMError
+from wali.agent.llm_openai import OpenAICompatibleLLM
 from wali.agent.loop import Agent, AgentReply, Session
 from wali.agent.prompts import build_system_prompt
 from wali.config import Settings
@@ -169,6 +170,36 @@ def simulated_clock(today: dt.date, tz: dt.tzinfo) -> Callable[[], dt.datetime]:
     return lambda: dt.datetime.now(tz) + offset
 
 
+def build_llm(settings: Settings, model: str | None) -> LLMClient:
+    """The model client for the configured provider. Raises ``SetupError`` when a setting it
+    needs is missing."""
+    if not model:
+        raise SetupError("No model is configured. Set WALI_AGENT_MODEL in the .env file.")
+    try:
+        if settings.llm_provider == "openai_compatible":
+            key = settings.llm_api_key
+            return OpenAICompatibleLLM(
+                model=model,
+                base_url=settings.llm_base_url or "",
+                api_key=key.get_secret_value() if key else "",
+                max_tokens=settings.llm_max_tokens,
+                temperature=settings.llm_temperature,
+                timeout_seconds=settings.llm_timeout_seconds,
+            )
+        key = settings.anthropic_api_key
+        return AnthropicLLM(
+            model=model,
+            api_key=key.get_secret_value() if key else None,
+            base_url=settings.llm_base_url,
+            max_tokens=settings.llm_max_tokens,
+            effort=settings.llm_effort,
+            refusal_fallback=settings.llm_refusal_fallback,
+            timeout_seconds=settings.llm_timeout_seconds,
+        )
+    except LLMError as error:
+        raise SetupError(error.user_message) from None
+
+
 def build_app(settings: Settings, *, llm: LLMClient | None = None) -> WaliApp:
     """Build the application from settings. Raises ``SetupError`` with a plain instruction when
     something needed is missing."""
@@ -212,18 +243,7 @@ def build_app(settings: Settings, *, llm: LLMClient | None = None) -> WaliApp:
         proposals_per_hour=settings.proposals_per_hour,
     )
     if llm is None:
-        if not settings.agent_model:
-            raise SetupError("No model is configured. Set WALI_AGENT_MODEL in the .env file.")
-        api_key = settings.anthropic_api_key
-        llm = AnthropicLLM(
-            model=settings.agent_model,
-            api_key=api_key.get_secret_value() if api_key else None,
-            base_url=settings.llm_base_url,
-            max_tokens=settings.llm_max_tokens,
-            effort=settings.llm_effort,
-            refusal_fallback=settings.llm_refusal_fallback,
-            timeout_seconds=settings.llm_timeout_seconds,
-        )
+        llm = build_llm(settings, settings.agent_model)
     return WaliApp(
         env=env,
         guard=guard,

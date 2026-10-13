@@ -37,8 +37,27 @@ uv run python scripts/gen_guard_key.py --write-env
 
 `.env` is git-ignored. Never commit it.
 
-Then put your key in `.env` as `ANTHROPIC_API_KEY`. The model names are already filled in from
-`.env.example` and can be changed there.
+Then set up the model in `.env`. There are two kinds of endpoint:
+
+| | Anthropic (default) | OpenAI-compatible |
+| --- | --- | --- |
+| `WALI_LLM_PROVIDER` | `anthropic` | `openai_compatible` |
+| Key goes in | `ANTHROPIC_API_KEY` | `WALI_LLM_API_KEY` |
+| `WALI_LLM_BASE_URL` | leave empty | required, the part before `/chat/completions` |
+| `WALI_AGENT_MODEL` | a Claude model id (already filled in) | your provider's model name |
+| `WALI_LLM_TEMPERATURE` | not used | optional, `0` for repeatable answers |
+
+The model must support tool (function) calling. If your provider's model has a small output
+limit, lower `WALI_LLM_MAX_TOKENS`.
+
+Check the model works, against the real endpoint (this spends a little credit):
+
+```bash
+uv run python scripts/live_check.py
+```
+
+It runs a connection check and five chat scenarios in a temporary folder, and never prints the
+key. Add `--quick` for the connection check only.
 
 ## Chat locally
 

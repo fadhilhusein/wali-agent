@@ -24,6 +24,9 @@ _ENV_TO_FIELD: dict[str, str] = {
     "ANTHROPIC_API_KEY": "anthropic_api_key",
     "WALI_AGENT_MODEL": "agent_model",
     "WALI_SENTINEL_MODEL": "sentinel_model",
+    "WALI_LLM_PROVIDER": "llm_provider",
+    "WALI_LLM_API_KEY": "llm_api_key",
+    "WALI_LLM_TEMPERATURE": "llm_temperature",
     "WALI_LLM_BASE_URL": "llm_base_url",
     "WALI_LLM_MAX_TOKENS": "llm_max_tokens",
     "WALI_LLM_EFFORT": "llm_effort",
@@ -64,7 +67,15 @@ class Settings(BaseModel):
     anthropic_api_key: SecretStr | None = None
     agent_model: str | None = None
     sentinel_model: str | None = None
-    # Only for an Anthropic-compatible endpoint other than Anthropic's own.
+    # anthropic: the Anthropic SDK (the default, as in the specification).
+    # openai_compatible: any endpoint that speaks the OpenAI chat-completions format.
+    llm_provider: Literal["anthropic", "openai_compatible"] = "anthropic"
+    # The key for an openai_compatible endpoint. Not used by the anthropic provider.
+    llm_api_key: SecretStr | None = None
+    # Sent only by the openai_compatible provider. Current Claude models accept none.
+    llm_temperature: float | None = Field(default=None, ge=0, le=2)
+    # anthropic: only for an Anthropic-compatible endpoint other than Anthropic's own.
+    # openai_compatible: required, for example https://api.example.com/v1
     llm_base_url: str | None = None
     llm_max_tokens: int = Field(16000, ge=256, le=128000)
     # How much the model thinks. None leaves the model's own default.
