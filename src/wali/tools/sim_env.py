@@ -260,6 +260,10 @@ class SimEnvironment:
     def close(self) -> None:
         self._conn.close()
 
+    def use_clock(self, clock: Callable[[], dt.datetime]) -> None:
+        """Replace the clock, for an application that derives its clock from the seed data."""
+        self._clock = clock
+
     @property
     def business_id(self) -> str:
         return self._business.id
@@ -511,3 +515,16 @@ class SimEnvironment:
         with self._lock:
             rows = self._conn.execute("SELECT * FROM payments ORDER BY executed_at, approval_id")
             return [PaymentRecord.model_validate(dict(row)) for row in rows]
+
+    def principals(self) -> dict[str, Principal]:
+        """One principal per role, taken from the stored users. For interfaces that let a demo
+        user pick a role; a real interface maps its own authenticated users instead."""
+        with self._lock:
+            rows = self._conn.execute("SELECT id, role, business_id FROM users ORDER BY id")
+            found: dict[str, Principal] = {}
+            for row in rows:
+                found.setdefault(
+                    row["role"],
+                    Principal(user_id=row["id"], role=row["role"], business_id=row["business_id"]),
+                )
+            return found

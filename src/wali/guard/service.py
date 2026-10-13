@@ -62,6 +62,7 @@ from wali.guard.policy import (
 from wali.guard.signing import sign_payload
 from wali.guard.store import GuardStore, ReviewItem
 from wali.models import (
+    BookEntry,
     Currency,
     GuardApproval,
     Invoice,
@@ -143,6 +144,13 @@ class MandateDecision(Model):
 class ReviewDecision(Model):
     status: Literal["flagged", "denied"]
     review_id: int | None = None
+    reason_code: str | None = None
+    user_message: str
+
+
+class BookEntryDecision(Model):
+    status: Literal["recorded", "denied"]
+    entry: BookEntry | None = None
     reason_code: str | None = None
     user_message: str
 
@@ -1085,6 +1093,84 @@ class GuardService:
             if principal.role != "owner" or not self._in_business(principal):
                 return []
             return self._store.review_items()
+
+    # --- Books ---------------------------------------------------------------------------
+
+    def record_book_entry(
+        self, principal: Principal, entry: NewBookEntry, *, session_id: str = ""
+    ) -> BookEntryDecision:
+        """Add a books entry on someone's behalf. Needs a valid mandate that allows it and a
+        role that keeps the books. This never moves money."""
+        with self._lock:
+            try:
+                now = self._now()
+
+                def denied(code: str, message: str) -> BookEntryDecision:
+                    self._audit("book_entry_denied", principal, now, session_id, reason_code=code)
+                    return BookEntryDecision(
+                        status="denied", reason_code=code, user_message=message
+                    )
+
+                mandate = self._load_mandate()
+                problem = mandate_problem(mandate, self._public_key, self._business_id, now)
+                if problem is not None:
+                    return denied(
+                        problem,
+                        "There is no valid spending mandate, so I cannot change the books. "
+                        "The owner needs to confirm one.",
+                    )
+                if "record_book_entry" not in mandate.allowed_actions:
+                    return denied(
+                        "MANDATE_INVALID",
+                        "The current mandate does not allow recording book entries.",
+                    )
+                if principal.role not in ("owner", "bookkeeper") or not self._in_business(
+                    principal
+                ):
+                    return denied(
+                        "ROLE_NOT_ALLOWED", "Your role is not allowed to record book entries."
+                    )
+                try:
+                    recorded: BookEntry = self._read(self._env.record_book_entry, principal, entry)
+                except AccessDenied:
+                    return denied(
+                        "ROLE_NOT_ALLOWED", "Your role is not allowed to record book entries."
+                    )
+                except NotFound:
+                    return denied(
+                        "INVOICE_INVALID", "I could not find the invoice this entry refers to."
+                    )
+                except ToolFailure:
+                    return denied("INTERNAL_ERROR", _UNREACHABLE)
+                self._audit(
+                    "book_entry_recorded",
+                    principal,
+                    now,
+                    session_id,
+                    book_entry_id=recorded.id,
+                    amount=recorded.amount,
+                    direction=recorded.direction,
+                    category=recorded.category,
+                    invoice_id=recorded.invoice_id,
+                )
+                return BookEntryDecision(
+                    status="recorded",
+                    entry=recorded,
+                    user_message="The entry is recorded in the books. No money was moved.",
+                )
+            except Exception:
+                self._audit_error("record_book_entry", principal, session_id)
+                return BookEntryDecision(
+                    status="denied", reason_code="INTERNAL_ERROR", user_message=_INTERNAL_ERROR
+                )
+
+    def audit_event(
+        self, event: str, principal: Principal | None, *, session_id: str = "", **data: Any
+    ) -> None:
+        """Write an event from outside the guard (a tool call, a blocked reply) to the same
+        audit log. Best effort: it never raises."""
+        with self._lock, contextlib.suppress(Exception):
+            self._audit(event, principal, self._now(), session_id, **data)
 
 
 def evaluate_missing_invoice() -> Deny:

@@ -9,12 +9,15 @@ from types import SimpleNamespace
 
 import pytest
 
+from wali.agent.llm import LLMResponse, ToolCall
+from wali.app import WaliApp
 from wali.guard.audit import AuditLog
 from wali.guard.keys import generate_keypair, load_private_key
 from wali.guard.service import GuardService, MandateRequest
 from wali.guard.signing import sign_payload
 from wali.guard.store import GuardStore
 from wali.models import GuardApproval, Invoice, Principal, Supplier
+from wali.tools.registry import ToolRegistry
 from wali.tools.sim_env import SimEnvironment
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -95,6 +98,55 @@ def activate_mandate(guard: GuardService, owner: Principal, request: MandateRequ
     return activated
 
 
+def say(text: str, stop_reason: str = "end_turn") -> LLMResponse:
+    """A scripted final answer from the model."""
+    return LLMResponse(
+        stop_reason=stop_reason,
+        text=text,
+        tool_calls=(),
+        content=[{"type": "text", "text": text}] if text else [],
+    )
+
+
+def use(*calls: tuple[str, dict], thinking: bool = False) -> LLMResponse:
+    """A scripted model turn that calls tools: ``use(("get_balance", {}), ...)``."""
+    counter = use.counter = getattr(use, "counter", 0) + 1
+    tool_calls = tuple(
+        ToolCall(id=f"toolu_{counter}_{n}", name=name, input=arguments)
+        for n, (name, arguments) in enumerate(calls)
+    )
+    content = [{"type": "thinking", "thinking": "", "signature": "sig"}] if thinking else []
+    content += [
+        {"type": "tool_use", "id": c.id, "name": c.name, "input": c.input} for c in tool_calls
+    ]
+    return LLMResponse(stop_reason="tool_use", text="", tool_calls=tool_calls, content=content)
+
+
+class ScriptedLLM:
+    """A stand-in for the model that replays a script. Each step is a response, an exception
+    to raise, or a function of the request that returns a response. Every request is recorded."""
+
+    def __init__(self, *steps) -> None:
+        self.steps = list(steps)
+        self.requests: list[dict] = []
+
+    def complete(self, *, system, messages, tools) -> LLMResponse:
+        self.requests.append({"system": system, "messages": list(messages), "tools": tools})
+        if not self.steps:
+            raise AssertionError("The scripted model was asked for more turns than scripted")
+        step = self.steps.pop(0)
+        if isinstance(step, Exception):
+            raise step
+        if callable(step):
+            return step(self.requests[-1])
+        return step
+
+
+def tool_results(request: dict) -> list[dict]:
+    """The decoded tool results in the last message of a recorded request."""
+    return [json.loads(block["content"]) for block in request["messages"][-1]["content"]]
+
+
 class Clock:
     """A clock the test controls."""
 
@@ -136,14 +188,39 @@ def world(make_env, guard_keys, clock, audit_log):
             **options,
         )
 
+    guard = make_guard()
+
+    def make_registry(principal: Principal, **options) -> ToolRegistry:
+        return ToolRegistry(env, guard, principal, today=lambda: clock().date(), **options)
+
+    def make_app(llm, **options) -> WaliApp:
+        return WaliApp(
+            env=env,
+            guard=guard,
+            llm=llm,
+            business_id=env.business_id,
+            currency=env.currency,
+            clock=clock,
+            **options,
+        )
+
     return SimpleNamespace(
         env=env,
         store=store,
         audit=audit_log,
         clock=clock,
-        guard=make_guard(),
+        guard=guard,
         make_guard=make_guard,
+        make_registry=make_registry,
+        make_app=make_app,
     )
+
+
+@pytest.fixture
+def ready(world, owner):
+    """A world with the standard mandate active."""
+    activate_mandate(world.guard, owner)
+    return world
 
 
 @pytest.fixture(scope="session")

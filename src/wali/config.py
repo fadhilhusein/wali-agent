@@ -7,11 +7,13 @@ variables hold secrets.
 
 from __future__ import annotations
 
+import datetime as dt
 import os
 from collections.abc import Mapping
 from datetime import timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, ValidationError
 
@@ -22,11 +24,20 @@ _ENV_TO_FIELD: dict[str, str] = {
     "ANTHROPIC_API_KEY": "anthropic_api_key",
     "WALI_AGENT_MODEL": "agent_model",
     "WALI_SENTINEL_MODEL": "sentinel_model",
+    "WALI_LLM_BASE_URL": "llm_base_url",
+    "WALI_LLM_MAX_TOKENS": "llm_max_tokens",
+    "WALI_LLM_EFFORT": "llm_effort",
+    "WALI_LLM_REFUSAL_FALLBACK": "llm_refusal_fallback",
+    "WALI_LLM_TIMEOUT_SECONDS": "llm_timeout_seconds",
     "WALI_GUARD_PRIVATE_KEY": "guard_private_key",
     "WALI_GUARD_PUBLIC_KEY": "guard_public_key",
+    "WALI_ENVIRONMENT": "environment",
     "WALI_DB_PATH": "db_path",
+    "WALI_GUARD_DB_PATH": "guard_db_path",
     "WALI_SEED_DIR": "seed_dir",
     "WALI_AUDIT_LOG_PATH": "audit_log_path",
+    "WALI_SIM_TODAY": "sim_today",
+    "WALI_HISTORY_MAX_TURNS": "history_max_turns",
     "WALI_DEFAULT_CURRENCY": "default_currency",
     "WALI_UTC_OFFSET_HOURS": "utc_offset_hours",
     "SIM_FAIL_RATE": "sim_fail_rate",
@@ -53,15 +64,33 @@ class Settings(BaseModel):
     anthropic_api_key: SecretStr | None = None
     agent_model: str | None = None
     sentinel_model: str | None = None
+    # Only for an Anthropic-compatible endpoint other than Anthropic's own.
+    llm_base_url: str | None = None
+    llm_max_tokens: int = Field(16000, ge=256, le=128000)
+    # How much the model thinks. None leaves the model's own default.
+    llm_effort: Literal["low", "medium", "high", "xhigh", "max"] | None = None
+    # Let the API re-run a request on another model if a safety classifier declines it.
+    # None means: on for Anthropic's own endpoint, off when llm_base_url is set.
+    llm_refusal_fallback: bool | None = None
+    llm_timeout_seconds: float = Field(120.0, gt=0, le=600)
 
     # Guard signing key (Ed25519, base64 of the raw 32 bytes).
     guard_private_key: SecretStr | None = None
     guard_public_key: str | None = None
 
+    # Which environment to run against.
+    environment: Literal["sim", "organiser"] = "sim"
+
     # Storage.
     db_path: Path = Path("data/wali.db")
+    guard_db_path: Path = Path("data/guard.db")
     seed_dir: Path = Path("data/seed")
     audit_log_path: Path = Path("data/audit.jsonl")
+
+    # The date the simulation treats as today. None means the day after the seed data ends.
+    sim_today: dt.date | None = None
+    # User turns kept in a chat session before older ones are dropped.
+    history_max_turns: int = Field(30, ge=4, le=200)
 
     # Locale.
     default_currency: str = Field("IDR", min_length=3, max_length=3)

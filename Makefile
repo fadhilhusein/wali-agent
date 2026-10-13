@@ -1,5 +1,5 @@
 # Convenience targets. On machines without make, run the uv commands directly (see README.md).
-.PHONY: install test lint format key seed
+.PHONY: install test lint format key seed chat
 
 install:
 	uv sync
@@ -20,3 +20,6 @@ key:
 
 seed:
 	uv run python scripts/gen_seed_data.py --seed 42
+
+chat:
+	uv run python -m wali.interfaces.cli --role owner
