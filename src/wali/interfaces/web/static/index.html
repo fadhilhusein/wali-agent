@@ -8,37 +8,123 @@
   <script src="/static/app.js" defer></script>
 </head>
 <body>
-  <header class="bar">
-    <div>
-      <h1>Wali</h1>
-      <p class="note" id="simulation">Simulation: synthetic data, no real bank and no real money.</p>
-    </div>
-    <div class="who">
-      <label for="role">Acting as</label>
-      <select id="role"></select>
-      <button type="button" id="reset" class="quiet">New conversation</button>
-    </div>
-  </header>
+  <a class="skip-link" href="#conversation">Skip to conversation</a>
 
-  <p class="note demo">Picking a role here stands in for logging in. It is for the demo only.</p>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand" aria-label="Wali home">
+        <span class="brand-name">Wali</span>
+        <span class="brand-detail">Finance operations, guarded</span>
+      </div>
 
-  <main class="layout">
-    <section class="chat" aria-label="Conversation">
-      <ol id="log" aria-live="polite"></ol>
-      <form id="ask">
-        <label for="text" class="hidden">Message</label>
-        <textarea id="text" rows="2" maxlength="4000"
-          placeholder="Tanya apa saja, misalnya: kas gue aman ga sampe akhir bulan?"></textarea>
-        <button type="submit" id="send">Send</button>
-      </form>
-    </section>
+      <p class="simulation-note">
+        <span class="simulation-label">Simulation</span>
+        <span id="simulation">Synthetic data only. No real bank and no real money.</span>
+      </p>
 
-    <aside class="inbox" aria-label="Waiting for you">
-      <h2>Waiting for you</h2>
-      <p id="empty" class="note">Nothing is waiting for you.</p>
-      <ul id="requests"></ul>
-      <button type="button" id="mandate" class="quiet">Draft the demo mandate</button>
-    </aside>
-  </main>
+      <div class="session-controls">
+        <div class="role-control">
+          <label for="role">Acting as</label>
+          <select id="role" aria-describedby="role-help"></select>
+        </div>
+        <span id="role-help" class="visually-hidden">
+          Role selection stands in for login in this local demo.
+        </span>
+        <button type="button" id="reset" class="button-secondary">New conversation</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section id="conversation" class="conversation" aria-labelledby="conversation-title">
+        <header class="section-heading">
+          <div>
+            <p class="section-kicker">Conversation</p>
+            <h1 id="conversation-title">Work through the numbers with Wali</h1>
+          </div>
+          <p class="role-note">Your selected role controls what Wali can show and approve.</p>
+        </header>
+
+        <div class="thread">
+          <div id="conversation-empty" class="conversation-empty">
+            <div class="empty-copy">
+              <p class="empty-index" aria-hidden="true">01</p>
+              <div>
+                <h2>What should we check?</h2>
+                <p>Ask about transactions, cash position, invoices, or a payment that needs review.</p>
+              </div>
+            </div>
+
+            <div class="quick-prompts" aria-label="Suggested prompts">
+              <button type="button" class="quick-prompt"
+                data-prompt="Reconcile the September transactions and explain any mismatches.">
+                <span>Reconcile transactions</span>
+                <small>Find and explain mismatches</small>
+              </button>
+              <button type="button" class="quick-prompt"
+                data-prompt="Forecast our cash position through the end of the month.">
+                <span>Forecast cash</span>
+                <small>Check the month-end position</small>
+              </button>
+              <button type="button" class="quick-prompt"
+                data-prompt="Review the open supplier invoices and tell me what needs attention.">
+                <span>Review invoices</span>
+                <small>Surface bills that need attention</small>
+              </button>
+            </div>
+          </div>
+
+          <ol id="log" aria-live="polite" aria-relevant="additions" aria-busy="false"></ol>
+        </div>
+
+        <div id="chat-status" class="status-line" role="status" aria-live="polite"></div>
+
+        <form id="ask" class="composer">
+          <label for="text">Message Wali</label>
+          <textarea id="text" rows="3" maxlength="4000"
+            placeholder="Ask about cash, transactions, invoices, or a payment..."></textarea>
+          <div class="composer-footer">
+            <span class="composer-hint">Enter to send. Shift + Enter for a new line.</span>
+            <button type="submit" id="send">Send message</button>
+          </div>
+        </form>
+      </section>
+
+      <aside class="approval-rail" aria-labelledby="approval-title">
+        <header class="approval-heading">
+          <div>
+            <p class="section-kicker">Guard review</p>
+            <h2 id="approval-title">Approval queue</h2>
+          </div>
+          <span id="request-count" class="request-count" aria-live="polite">0</span>
+        </header>
+
+        <p class="approval-intro">
+          Payments and mandate changes stay here until an authorised role decides.
+        </p>
+
+        <div id="requests-loading" class="queue-state" role="status">
+          <span class="loading-mark" aria-hidden="true"></span>
+          Checking the queue...
+        </div>
+
+        <div id="requests-error" class="queue-state queue-error" role="alert" hidden>
+          <p id="requests-error-message">The queue could not be loaded.</p>
+          <button type="button" id="retry-requests" class="button-secondary">Try again</button>
+        </div>
+
+        <div id="empty" class="queue-state" hidden>
+          <p>Nothing needs your approval.</p>
+          <span>New requests will appear here.</span>
+        </div>
+
+        <ul id="requests" aria-live="polite" aria-busy="true"></ul>
+
+        <div class="mandate-action">
+          <p>Owners can draft the demo spending rules before approving them.</p>
+          <button type="button" id="mandate" class="button-secondary">Draft demo mandate</button>
+        </div>
+      </aside>
+    </main>
+  </div>
 </body>
 </html>
