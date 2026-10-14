@@ -52,6 +52,8 @@ _ENV_TO_FIELD: dict[str, str] = {
     "WALI_CONFIRM_TOKEN_TTL_SECONDS": "confirm_token_ttl_seconds",
     "WALI_PROPOSALS_PER_HOUR": "proposals_per_hour",
     "WALI_SENTINEL_STRICT_TURN": "sentinel_strict_turn",
+    "WALI_TELEGRAM_BOT_TOKEN": "telegram_bot_token",
+    "WALI_TELEGRAM_USERS": "telegram_users",
     "MANUAL_MINUTES_PER_ITEM": "manual_minutes_per_item",
 }
 _FIELD_TO_ENV = {field: env for env, field in _ENV_TO_FIELD.items()}
@@ -124,6 +126,12 @@ class Settings(BaseModel):
     # False: text flagged in a record makes payments for THAT invoice or supplier wait for the
     # owner. True: it also makes every payment in the same conversation turn wait.
     sentinel_strict_turn: bool = False
+
+    # Telegram. The token is from @BotFather. The users map Telegram ids to user ids of the
+    # environment, for example "111111111=user-owner,222222222=user-bookkeeper"; see
+    # wali.interfaces.telegram_bot. Anyone not listed is ignored.
+    telegram_bot_token: SecretStr | None = None
+    telegram_users: str | None = None
 
     # PLACEHOLDER until the finance analyst supplies a figure from real interviews.
     manual_minutes_per_item: Decimal = Field(Decimal("5"), gt=0)

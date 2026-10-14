@@ -20,7 +20,8 @@ The project is being built in phases. This section lists only what exists and ha
 | 4 | Tool registry (exactly ten tools), hand-written agent loop, model wrappers (Anthropic SDK and OpenAI-compatible), CLI chat | Done. Run live on the OpenAI-compatible path only; the Anthropic path is tested without a live model |
 | 5 | Dialogue behaviours (periods, clarification, correction, vague references, fallback), full system prompt, automatic reply check, seed dialogues | Done |
 | 6 | Sentinel: screening of outside text (rules plus a separate model call), withholding of flagged text, outgoing leak check | Done. The model check was run live on the OpenAI-compatible path only |
-| 7 to 10 | Telegram and web, full evaluation, packaging | Not started |
+| 7 | Telegram bot (accounts linked by Telegram id, Confirm and Decline buttons, requests sent to the owner) and a demo web page | Built and tested without the network; the web page was run live. The Telegram demo has not run live yet (needs a bot token) |
+| 8 to 10 | Full evaluation, hardening, packaging | Not started |
 
 The full architecture description, third-party list, and demo script are added in phase 10.
 
@@ -116,7 +117,40 @@ A typical first session:
 The role is chosen at the interface, as a stand-in for logging in. Typing "I am the owner" in
 the chat changes nothing, and `/confirm` goes straight to the guard, never through the model.
 
-To start over, delete `data/wali.db`, `data/guard.db`, and `data/audit.jsonl`.
+To start over, delete `data/wali.db`, `data/guard.db`, and `data/audit.jsonl`. The CLI, the Telegram bot, and the web page all use these files.
+
+## Telegram
+
+1. Create a bot with [@BotFather](https://t.me/BotFather) and put its token in `.env` as
+   `WALI_TELEGRAM_BOT_TOKEN`.
+2. Start the bot once and send it any message. It does not answer strangers, but it prints
+   `Ignored a message from Telegram id 123456789`, which is your id.
+3. Link ids to users from `data/seed/users.csv`, then restart the bot:
+
+   ```text
+   WALI_TELEGRAM_USERS=111111111=user-owner,222222222=user-bookkeeper
+   ```
+
+   For a demo with one phone, one id may act as several users and switch with `/as`:
+   `111111111=user-bookkeeper|user-owner`.
+
+```bash
+uv run python -m wali.interfaces.telegram_bot
+```
+
+Who someone is comes from their Telegram id only. A payment that needs the owner arrives at
+every owner account with Confirm and Decline buttons; the person who asked is told the outcome.
+Type `/help` in the chat for the commands, including `/simfail list_transactions 2`, which makes
+the simulation fail on purpose to show the fallback.
+
+## Web page
+
+```bash
+uv run python -m wali.interfaces.web
+```
+
+Then open http://127.0.0.1:8000/. The page has a role selector instead of a login, so it listens
+on this computer only.
 
 ## Development
 

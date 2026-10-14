@@ -8,11 +8,15 @@
 
 The principal given to these methods must come from the interface's own authentication. Nothing
 typed in a chat can change it.
+
+Every public method takes one lock, so interfaces that serve several people at once (Telegram,
+web) can call it from any thread. A slow model answer for one person makes the others wait.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -70,6 +74,7 @@ class WaliApp:
     _sessions: dict[tuple[str, str], Session] = field(default_factory=dict, repr=False)
     _inbox: list[ConfirmationRequest] = field(default_factory=list, repr=False)
     _session_counter: int = 0
+    _lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
 
     def __post_init__(self) -> None:
         self._agent = Agent(
@@ -106,6 +111,10 @@ class WaliApp:
 
     def chat(self, principal: Principal, text: str, *, channel: str = "cli") -> ChatResult:
         """Answer one message from an authenticated principal."""
+        with self._lock:
+            return self._chat(principal, text, channel)
+
+    def _chat(self, principal: Principal, text: str, channel: str) -> ChatResult:
         session = self._session(principal, channel)
         session.pending_proposals[:] = [
             p for p in session.pending_proposals if self.guard.is_pending(p["proposal_id"])
@@ -136,7 +145,8 @@ class WaliApp:
 
     def reset(self, principal: Principal, *, channel: str = "cli") -> None:
         """Forget the conversation with this principal on this channel."""
-        self._sessions.pop((channel, principal.user_id), None)
+        with self._lock:
+            self._sessions.pop((channel, principal.user_id), None)
 
     # --- Confirmation inbox --------------------------------------------------------------
 
@@ -147,6 +157,10 @@ class WaliApp:
 
     def pending(self, principal: Principal) -> list[ConfirmationRequest]:
         """Requests this principal may confirm right now, oldest first."""
+        with self._lock:
+            return self._pending(principal)
+
+    def _pending(self, principal: Principal) -> list[ConfirmationRequest]:
         self._collect()
         now = self.clock()
         self._inbox = [
@@ -161,39 +175,64 @@ class WaliApp:
             and request.business_id == principal.business_id
         ]
 
-    def _take(self, principal: Principal, number: int) -> ConfirmationRequest | None:
-        waiting = self.pending(principal)
-        if not 1 <= number <= len(waiting):
-            return None
-        request = waiting[number - 1]
-        self._inbox.remove(request)
+    def _take(
+        self, principal: Principal, number: int, subject_id: str | None
+    ) -> ConfirmationRequest | None:
+        waiting = self._pending(principal)
+        if subject_id is not None:
+            request = next((r for r in waiting if r.subject_id == subject_id), None)
+        else:
+            request = waiting[number - 1] if 1 <= number <= len(waiting) else None
+        if request is not None:
+            self._inbox.remove(request)
         return request
 
     def confirm(
-        self, principal: Principal, number: int = 1, *, channel: str = "cli"
+        self,
+        principal: Principal,
+        number: int = 1,
+        *,
+        channel: str = "cli",
+        subject_id: str | None = None,
     ) -> PaymentDecision | MandateDecision | None:
-        """Confirm the request shown to this principal as item ``number``. Returns None when
-        there is no such request. The guard still checks the principal and the token."""
-        request = self._take(principal, number)
-        if request is None:
-            return None
-        session_id = self._session(principal, channel).session_id
-        if request.kind == "payment":
-            decision = self.guard.confirm_payment(principal, request.token, session_id=session_id)
-        else:
-            decision = self.guard.confirm_mandate(principal, request.token, session_id=session_id)
-        self._collect()
-        return decision
+        """Confirm the request shown to this principal as item ``number``, or the one for
+        ``subject_id`` (the proposal or draft id an interface put on a button). Returns None
+        when there is no such request for this principal. The guard still checks the
+        principal and the token."""
+        with self._lock:
+            request = self._take(principal, number, subject_id)
+            if request is None:
+                return None
+            session_id = self._session(principal, channel).session_id
+            if request.kind == "payment":
+                decision = self.guard.confirm_payment(
+                    principal, request.token, session_id=session_id
+                )
+            else:
+                decision = self.guard.confirm_mandate(
+                    principal, request.token, session_id=session_id
+                )
+            self._collect()
+            return decision
 
-    def cancel(self, principal: Principal, number: int = 1, *, channel: str = "cli") -> bool:
-        """Decline the request shown to this principal as item ``number``."""
-        request = self._take(principal, number)
-        if request is None:
-            return False
-        session_id = self._session(principal, channel).session_id
-        return self.guard.cancel_confirmation(
-            principal, request.token, request.kind, session_id=session_id
-        )
+    def cancel(
+        self,
+        principal: Principal,
+        number: int = 1,
+        *,
+        channel: str = "cli",
+        subject_id: str | None = None,
+    ) -> bool:
+        """Decline the request shown to this principal as item ``number``, or the one for
+        ``subject_id``."""
+        with self._lock:
+            request = self._take(principal, number, subject_id)
+            if request is None:
+                return False
+            session_id = self._session(principal, channel).session_id
+            return self.guard.cancel_confirmation(
+                principal, request.token, request.kind, session_id=session_id
+            )
 
 
 def simulated_clock(today: dt.date, tz: dt.tzinfo) -> Callable[[], dt.datetime]:
@@ -282,7 +321,7 @@ def build_app(
             settings.model_copy(update={"llm_max_tokens": capped}), settings.sentinel_model
         )
     sentinel = Sentinel(sentinel_llm, prompt=SENTINEL_PROMPT)
-    api_keys = (settings.anthropic_api_key, settings.llm_api_key)
+    api_keys = (settings.anthropic_api_key, settings.llm_api_key, settings.telegram_bot_token)
     guard = GuardService(
         env,
         private_key,

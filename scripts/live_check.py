@@ -28,7 +28,7 @@ from wali.app import ChatResult, SetupError, WaliApp, build_app, build_llm
 from wali.config import ConfigError, Settings, load_settings
 from wali.guard.keys import generate_keypair
 from wali.guard.service import MandateRequest
-from wali.interfaces.cli import DEMO_MANDATE, verified_supplier_ids
+from wali.interfaces.common import DEMO_MANDATE, verified_supplier_ids
 from wali.models import Principal
 
 FAR_PAST = dt.date(2000, 1, 1)

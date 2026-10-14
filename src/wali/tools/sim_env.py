@@ -520,15 +520,22 @@ class SimEnvironment:
             rows = self._conn.execute("SELECT * FROM payments ORDER BY executed_at, approval_id")
             return [PaymentRecord.model_validate(dict(row)) for row in rows]
 
+    def users(self) -> dict[str, Principal]:
+        """Every stored user as a principal, by user id. For an interface that maps its own
+        authenticated accounts to users of this environment."""
+        with self._lock:
+            rows = self._conn.execute("SELECT id, role, business_id FROM users ORDER BY id")
+            return {
+                row["id"]: Principal(
+                    user_id=row["id"], role=row["role"], business_id=row["business_id"]
+                )
+                for row in rows
+            }
+
     def principals(self) -> dict[str, Principal]:
         """One principal per role, taken from the stored users. For interfaces that let a demo
         user pick a role; a real interface maps its own authenticated users instead."""
-        with self._lock:
-            rows = self._conn.execute("SELECT id, role, business_id FROM users ORDER BY id")
-            found: dict[str, Principal] = {}
-            for row in rows:
-                found.setdefault(
-                    row["role"],
-                    Principal(user_id=row["id"], role=row["role"], business_id=row["business_id"]),
-                )
-            return found
+        found: dict[str, Principal] = {}
+        for principal in self.users().values():
+            found.setdefault(principal.role, principal)
+        return found

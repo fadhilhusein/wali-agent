@@ -17,7 +17,7 @@ from collections.abc import Callable, Mapping
 
 from wali.app import SetupError, WaliApp, build_app
 from wali.config import ConfigError, load_settings
-from wali.guard.service import ConfirmationRequest, MandateRequest
+from wali.interfaces.common import SIMULATION_NOTE, describe, draft_demo_mandate
 from wali.models import Principal
 from wali.tools.base import ToolFailure
 
@@ -32,42 +32,6 @@ HELP = """Commands:
   /reset                           start a fresh conversation
   /help                            show this help
   /quit                            leave"""
-
-# The mandate from the build specification's example, used by /mandate in the demo.
-DEMO_MANDATE = {
-    "per_payment": "5000000",
-    "per_week": "15000000",
-    "confirm_above": "1000000",
-    "min_cash_buffer": "3000000",
-    "valid_days": 30,
-    "bookkeeper_can_propose": True,
-    "bookkeeper_max_propose": "5000000",
-}
-
-
-def describe(request: ConfirmationRequest, number: int) -> str:
-    """What the person is being asked to confirm, in full, before they decide."""
-    lines = [f"[{number}] {request.kind.upper()} waiting for the {request.required_role}"]
-    lines.append(f"    requested by: {request.requested_by}")
-    summary = request.summary
-    if summary is not None:
-        lines += [
-            f"    supplier:     {summary.supplier_name}",
-            f"    invoice:      {summary.invoice_number} (due {summary.due_date.isoformat()})",
-            f"    amount:       {summary.amount:,} {summary.currency}",
-            f"    to account:   {summary.registered_account} (registered)",
-            f"    balance after: {summary.balance_after:,} {summary.currency}",
-        ]
-    lines += [f"    - {change}" for change in request.changes]
-    lines += [f"    ! {warning.message}" for warning in request.risk_warnings]
-    lines.append(f"    expires at:   {request.expires_at.strftime('%H:%M:%S')}")
-    return "\n".join(lines)
-
-
-def verified_supplier_ids(app: WaliApp, owner: Principal) -> list[str]:
-    """Suppliers that have invoiced the business and whose account is verified."""
-    supplier_ids = sorted({i.counterparty_id for i in app.env.list_invoices(owner, "payable")})
-    return [s for s in supplier_ids if app.env.get_supplier(owner, s).account_verified]
 
 
 def run_cli(
@@ -96,7 +60,7 @@ def run_cli(
             return 1
         return int(argument) if argument.isdigit() and int(argument) > 0 else None
 
-    output_fn("Wali (simulation, synthetic data). Type /help for commands.")
+    output_fn(f"Wali. {SIMULATION_NOTE} Type /help for commands.")
     output_fn(f"You are: {principal.role} ({principal.user_id})")
     if not app.sentinel_model_enabled:
         output_fn(
@@ -159,12 +123,10 @@ def run_cli(
                 output_fn("Declined." if app.cancel(principal, number) else "Nothing to decline.")
         elif command == "/mandate":
             try:
-                suppliers = verified_supplier_ids(app, principal)
+                decision = draft_demo_mandate(app, principal)
             except (PermissionError, ToolFailure):
                 output_fn("Only the owner can set the mandate.")
                 continue
-            request = MandateRequest(allowed_suppliers=suppliers, **DEMO_MANDATE)
-            decision = app.guard.draft_mandate(principal, request)
             output_fn(f"guard> {decision.user_message}")
             show_pending()
         elif command == "/review":

@@ -28,3 +28,6 @@ eval/reports/*
 # Editors
 .idea/
 .vscode/
+
+# Local editor and assistant settings
+.claude/

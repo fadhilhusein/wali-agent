@@ -21,7 +21,7 @@ from wali.app import WaliApp, build_app
 from wali.config import Settings
 from wali.guard.keys import generate_keypair
 from wali.guard.service import MandateRequest
-from wali.interfaces.cli import DEMO_MANDATE, verified_supplier_ids
+from wali.interfaces.common import DEMO_MANDATE, verified_supplier_ids
 from wali.models import Principal
 
 

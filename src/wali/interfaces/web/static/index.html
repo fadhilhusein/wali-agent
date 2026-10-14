@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wali demo</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="bar">
+    <div>
+      <h1>Wali</h1>
+      <p class="note" id="simulation">Simulation: synthetic data, no real bank and no real money.</p>
+    </div>
+    <div class="who">
+      <label for="role">Acting as</label>
+      <select id="role"></select>
+      <button type="button" id="reset" class="quiet">New conversation</button>
+    </div>
+  </header>
+
+  <p class="note demo">Picking a role here stands in for logging in. It is for the demo only.</p>
+
+  <main class="layout">
+    <section class="chat" aria-label="Conversation">
+      <ol id="log" aria-live="polite"></ol>
+      <form id="ask">
+        <label for="text" class="hidden">Message</label>
+        <textarea id="text" rows="2" maxlength="4000"
+          placeholder="Tanya apa saja, misalnya: kas gue aman ga sampe akhir bulan?"></textarea>
+        <button type="submit" id="send">Send</button>
+      </form>
+    </section>
+
+    <aside class="inbox" aria-label="Waiting for you">
+      <h2>Waiting for you</h2>
+      <p id="empty" class="note">Nothing is waiting for you.</p>
+      <ul id="requests"></ul>
+      <button type="button" id="mandate" class="quiet">Draft the demo mandate</button>
+    </aside>
+  </main>
+</body>
+</html>
