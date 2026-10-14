@@ -123,7 +123,8 @@ To start over, delete `data/wali.db`, `data/guard.db`, and `data/audit.jsonl`. T
 
 1. Create a bot with [@BotFather](https://t.me/BotFather) and put its token in `.env` as
    `WALI_TELEGRAM_BOT_TOKEN`.
-2. Start the bot once and send it any message. It does not answer strangers, but it prints
+2. Start the bot once (it starts in setup mode while nobody is linked) and send it any
+   message. It does not answer strangers, but its console prints
    `Ignored a message from Telegram id 123456789`, which is your id.
 3. Link ids to users from `data/seed/users.csv`, then restart the bot:
 

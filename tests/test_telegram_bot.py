@@ -123,9 +123,14 @@ def test_roles_come_from_the_environment_not_from_the_setting(world, principals)
         resolve_users({5: ("user-boss",)}, world.env.users())
 
 
-def test_a_bot_with_nobody_listed_does_not_start(world):
-    with pytest.raises(UserMapError):
-        WaliBot(world.make_app(ScriptedLLM()), {})
+def test_a_bot_with_nobody_listed_answers_no_one(world):
+    llm = ScriptedLLM()
+    bot = WaliBot(world.make_app(llm), {})
+
+    assert bot.on_message(OWNER, "halo") == []
+    assert bot.on_message(OWNER, "/start") == []
+    assert bot.on_button(OWNER, f"{CONFIRM}:p-1") is None
+    assert llm.requests == []
 
 
 # --- Who is talking ----------------------------------------------------------------------------
@@ -572,7 +577,6 @@ def settings_env(tmp_path, guard_keys):
     ("extra", "message"),
     [
         ({}, "WALI_TELEGRAM_BOT_TOKEN"),
-        ({"WALI_TELEGRAM_BOT_TOKEN": "123:abc"}, "lists nobody"),
         (
             {"WALI_TELEGRAM_BOT_TOKEN": "123:abc", "WALI_TELEGRAM_USERS": "5=user-boss"},
             "user-boss",
@@ -589,6 +593,26 @@ def test_the_bot_does_not_start_when_set_up_wrongly(
 
     assert telegram_bot.main([]) == 1
     assert message in capsys.readouterr().err
+
+
+def test_with_nobody_listed_the_bot_starts_in_setup_mode(settings_env, monkeypatch, capsys):
+    from wali.config import load_settings
+
+    settings = load_settings(
+        env={**settings_env, "WALI_TELEGRAM_BOT_TOKEN": "123456789:" + "C" * 35}, env_file=None
+    )
+    started = []
+
+    class FakeApplication:
+        def run_polling(self, allowed_updates):
+            started.append(allowed_updates)
+
+    monkeypatch.setattr(telegram_bot, "load_settings", lambda: settings)
+    monkeypatch.setattr(telegram_bot, "build_application", lambda bot, token: FakeApplication())
+
+    assert telegram_bot.main([]) == 0
+    assert "SETUP MODE" in capsys.readouterr().out
+    assert started
 
 
 def test_the_bot_starts_polling_when_set_up(settings_env, monkeypatch, capsys):

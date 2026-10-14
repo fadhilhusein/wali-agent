@@ -140,8 +140,8 @@ def split_text(text: str, limit: int = MAX_CHARS) -> list[str]:
 
 class WaliBot:
     def __init__(self, app: WaliApp, users: Mapping[int, Sequence[Principal]]) -> None:
-        if not users:
-            raise UserMapError("WALI_TELEGRAM_USERS lists nobody, so the bot would answer no one")
+        """With nobody in ``users`` the bot answers no one. That is how it is first started:
+        its console then shows the id of everyone who writes to it."""
         self._app = app
         self._users = {tid: tuple(principals) for tid, principals in users.items()}
         self._active = {tid: principals[0] for tid, principals in self._users.items()}
@@ -475,6 +475,12 @@ def main(argv: list[str] | None = None) -> int:
 
     for tid, principals in users.items():
         print(f"Telegram id {tid}: {', '.join(f'{p.role} ({p.user_id})' for p in principals)}")
+    if not users:
+        print(
+            "SETUP MODE: WALI_TELEGRAM_USERS lists nobody, so every message is ignored. Send the "
+            "bot a message; its Telegram id is printed below. Put it in WALI_TELEGRAM_USERS and "
+            "restart."
+        )
     print(f"{SIMULATION_NOTE} Bot running; press Ctrl+C to stop.")
     build_application(bot, settings.telegram_bot_token.get_secret_value()).run_polling(
         allowed_updates=["message", "callback_query"]
