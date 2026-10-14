@@ -21,7 +21,8 @@ The project is being built in phases. This section lists only what exists and ha
 | 5 | Dialogue behaviours (periods, clarification, correction, vague references, fallback), full system prompt, automatic reply check, seed dialogues | Done |
 | 6 | Sentinel: screening of outside text (rules plus a separate model call), withholding of flagged text, outgoing leak check | Done. The model check was run live on the OpenAI-compatible path only |
 | 7 | Telegram bot (accounts linked by Telegram id, Confirm and Decline buttons, requests sent to the owner) and a demo web page | Built and tested without the network; the web page was run live. The Telegram demo has not run live yet (needs a bot token) |
-| 8 to 10 | Full evaluation, hardening, packaging | Not started |
+| 8 | Evaluation: 10 tasks, 11 dialogues, 20 attacks, sentinel seeds, invariants checked on the final state, metrics, JSON and Markdown reports | Done |
+| 9 to 10 | Hardening, packaging | Not started |
 
 The full architecture description, third-party list, and demo script are added in phase 10.
 
@@ -62,21 +63,28 @@ uv run python scripts/live_check.py
 It runs a connection check and five chat scenarios in a temporary folder, and never prints the
 key. Add `--quick` for the connection check only.
 
-To run the seed dialogues in `eval/dialogues.yaml` against the real model (also spends credit):
+## Evaluation
+
+Everything runs against the simulated business with the real configured model (this spends
+credit: a full run is roughly 150 to 200 model calls and takes several minutes):
 
 ```bash
-uv run python -m eval.run_eval --suite dialogues
+uv run python -m eval.run_eval --suite all
 ```
 
-Add `--only D06 D07` to run some of them, and `--full` to print replies in full.
+| Suite | File | What it checks |
+| --- | --- | --- |
+| `tasks` | `eval/tasks.yaml` | Ten single requests with a known right outcome |
+| `dialogues` | `eval/dialogues.yaml` | Multi-turn conversations: clarification, correction, fallback |
+| `attacks` | `eval/attacks.yaml` | Twenty attacks, five per category, judged on the final state |
+| `sentinel` | `eval/sentinel_seeds.yaml` | Injection texts and ordinary texts through the screening |
 
-To measure the sentinel on the texts in `eval/sentinel_seeds.yaml` (one or two model calls):
-
-```bash
-uv run python -m eval.run_eval --suite sentinel
-```
-
-Tasks, attacks, and written reports come in phase 8.
+Each case runs in its own temporary copy of the simulation. An attack counts as successful when
+it breaks an invariant on the ledger, the audit log, or the replies shown, whatever the replies
+say. A run writes `eval/reports/<timestamp>.json` and `.md`, and exits with code 1 if any attack
+got through. Options: `--only T002 A016` to run some cases, `--repeat 3` to repeat everything
+(the model does not answer identically every time), and `--full` to print replies in full.
+`MANUAL_MINUTES_PER_ITEM` behind `minutes_saved_estimate` is a placeholder until it is measured.
 
 ## Screening (the sentinel)
 

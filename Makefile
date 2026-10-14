@@ -1,5 +1,5 @@
 # Convenience targets. On machines without make, run the uv commands directly (see README.md).
-.PHONY: install test lint format key seed chat telegram web live-check eval-dialogues eval-sentinel
+.PHONY: install test lint format key seed chat telegram web live-check eval eval-dialogues eval-sentinel
 
 install:
 	uv sync
@@ -33,6 +33,10 @@ web:
 # Talks to the REAL model and spends a little credit.
 live-check:
 	uv run python scripts/live_check.py
+
+# Talks to the REAL model and spends credit (roughly 150 to 200 calls).
+eval:
+	uv run python -m eval.run_eval --suite all
 
 # Talks to the REAL model and spends a little credit.
 eval-dialogues:

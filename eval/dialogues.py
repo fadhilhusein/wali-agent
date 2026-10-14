@@ -18,7 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from eval.harness import EvalWorld
 from wali.agent.loop import ACTION_TOOLS
-from wali.models import Role
+from wali.models import Principal, Role
 
 DIALOGUES_PATH = Path(__file__).with_name("dialogues.yaml")
 
@@ -221,37 +221,76 @@ def check_final(expect: FinalExpect, world: EvalWorld) -> list[str]:
     return problems
 
 
+@dataclass
+class TurnRun:
+    """One user turn as it ran: the app's result plus what it cost."""
+
+    result: Any
+    model_calls: int
+    withdrawn: int
+    seconds: float
+
+    @property
+    def tools(self) -> list[str]:
+        return [
+            t.name if not t.is_error else f"{t.name}[{t.error_code}]"
+            for t in self.result.reply.tool_calls
+        ]
+
+
+def run_turn(
+    world: EvalWorld,
+    principal: Principal,
+    text: str,
+    *,
+    channel: str,
+    failures: list[InjectedFailure] | None = None,
+) -> TurnRun:
+    """Send one message as ``principal`` and record what was typed and shown."""
+    world.app.env.clear_failures()
+    for failure in failures or []:
+        world.app.env.inject_failure(failure.method, times=failure.times)
+    calls_before = world.llm.calls
+    withdrawn_before = world.audit_events().count("proposal_withdrawn")
+    started = time.perf_counter()
+    result = world.app.chat(principal, text, channel=channel)
+    seconds = time.perf_counter() - started
+    world.messages.append((principal.role, text))
+    world.replies.append((principal.role, result.reply.text))
+    world.app.env.clear_failures()
+    return TurnRun(
+        result,
+        world.llm.calls - calls_before,
+        world.audit_events().count("proposal_withdrawn") - withdrawn_before,
+        seconds,
+    )
+
+
 def run_dialogue(dialogue: Dialogue, world: EvalWorld) -> DialogueResult:
     principal = world.principals[dialogue.principal]
     turns = []
     for turn in dialogue.turns:
-        world.app.env.clear_failures()
-        for failure in turn.inject_failures:
-            world.app.env.inject_failure(failure.method, times=failure.times)
-        calls_before = world.llm.calls
-        withdrawn_before = world.audit_events().count("proposal_withdrawn")
-        started = time.perf_counter()
-        result = world.app.chat(principal, turn.user, channel=f"eval-{dialogue.id}")
-        seconds = time.perf_counter() - started
-        model_calls = world.llm.calls - calls_before
-        withdrawn = world.audit_events().count("proposal_withdrawn") - withdrawn_before
-        tools = [
-            t.name if not t.is_error else f"{t.name}[{t.error_code}]"
-            for t in result.reply.tool_calls
-        ]
-        problems = check_turn(turn.expect, result, model_calls=model_calls, withdrawn=withdrawn)
-        if result.reply.stop == "llm_error" and world.llm.last_detail:
+        ran = run_turn(
+            world,
+            principal,
+            turn.user,
+            channel=f"eval-{dialogue.id}",
+            failures=turn.inject_failures,
+        )
+        problems = check_turn(
+            turn.expect, ran.result, model_calls=ran.model_calls, withdrawn=ran.withdrawn
+        )
+        if ran.result.reply.stop == "llm_error" and world.llm.last_detail:
             problems.append(f"model error detail: {world.llm.last_detail}")
         turns.append(
             TurnResult(
                 turn.user,
-                result.reply.text,
-                result.reply.stop,
-                tools,
-                model_calls,
-                seconds,
+                ran.result.reply.text,
+                ran.result.reply.stop,
+                ran.tools,
+                ran.model_calls,
+                ran.seconds,
                 problems,
             )
         )
-    world.app.env.clear_failures()
     return DialogueResult(dialogue.id, dialogue.title, turns, check_final(dialogue.expect, world))

@@ -78,6 +78,8 @@ class ToolTrace:
     arguments: dict[str, Any]
     is_error: bool
     error_code: str | None
+    # The tool result exactly as the model saw it, for evaluation. Never shown to a person.
+    result: str = ""
 
 
 @dataclass(frozen=True)
@@ -198,7 +200,13 @@ class Agent:
                 for call in response.tool_calls:
                     outcome = registry.execute(call.name, call.input)
                     traces.append(
-                        ToolTrace(call.name, dict(call.input), outcome.is_error, outcome.error_code)
+                        ToolTrace(
+                            call.name,
+                            dict(call.input),
+                            outcome.is_error,
+                            outcome.error_code,
+                            outcome.content,
+                        )
                     )
                     result: dict[str, Any] = {
                         "type": "tool_result",
