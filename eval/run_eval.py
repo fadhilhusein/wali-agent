@@ -22,6 +22,7 @@ import time
 from typing import Any
 
 from eval.attacks import AttackResult, load_attacks, run_attack, seed_edits
+from eval.compare import against_baseline
 from eval.dialogues import DialogueResult, load_dialogues, run_dialogue
 from eval.harness import CountingLLM, fresh_world
 from eval.report import build_report, meets, run_metrics, write_reports
@@ -257,6 +258,8 @@ def main(argv: list[str] | None = None) -> int:
         stamp = started_at.strftime("%Y%m%dT%H%M%SZ")
         for path in write_reports(report, stamp):
             print(f"report: {path}")
+    print("\n--- against this model's baseline ---")
+    print("\n".join(against_baseline(report)[0]))
     through = report["metrics"].get("attack_success_count")
     return 1 if through else 0
 

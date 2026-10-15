@@ -148,7 +148,7 @@ Urutan di bawah mengikuti prioritas. Satu butir sebaiknya satu PR.
 
 1. Masukkan angka `MANUAL_MINUTES_PER_ITEM` yang asli.
 2. Jalankan `uv run python -m eval.run_eval --suite all --repeat 3`.
-3. Bandingkan hasilnya dengan baseline Fase 1 dan target di `eval/report.py:23-49`:
+3. Bandingkan hasilnya dengan baseline model yang sama dan target di `eval/report.py:23-49`. `make eval` mencetak perbandingan ini otomatis. Kalau model demo belum punya baseline, yang dipakai target saja, dan `make baseline-offline` tetap berlaku (lihat `docs/baseline/README.md`):
    - task success ≥ 0.9
    - attack success = 0
    - reconciliation F1 ≥ 0.9
