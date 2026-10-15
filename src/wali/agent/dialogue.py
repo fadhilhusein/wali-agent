@@ -8,7 +8,8 @@ model getting them right:
 - ``is_correction``: recognises "eh salah, bayar yang kopi aja", so an earlier pending payment
   request can be withdrawn when the corrected one is proposed.
 - ``fallback_hint``: what else can be offered when a tool keeps failing.
-- ``plain_text``: removes Markdown markup from a reply, because chat apps show it literally.
+- ``plain_text``: removes Markdown markup from a reply, because chat apps show it literally,
+  and replaces typographic spaces and hyphens with plain ones.
 
 The remaining behaviours (one clarifying question, confirming a vague reference before acting)
 are prompt rules; see ``wali.agent.prompts``.
@@ -346,12 +347,25 @@ _BOLD_UNDERSCORES = re.compile(r"(?<![\w_])__(?![\s_])([^_\n]+?)(?<![\s_])__(?![
 _ITALIC_STARS = re.compile(r"(?<![\w*])\*(?![\s*])([^*\n]+?)(?<![\s*])\*(?![\w*])")
 _CODE = re.compile(r"`([^`\n]+)`")
 _BLANK_RUNS = re.compile(r"\n{3,}")
+# Some models write "5 Okt" with a narrow no-break space and "5-15" with a non-breaking hyphen.
+# They look the same on screen but never match a plain search, so they become plain characters.
+_TYPOGRAPHY = str.maketrans(
+    {
+        "\u00a0": " ",  # no-break space
+        "\u2007": " ",  # figure space
+        "\u2009": " ",  # thin space
+        "\u202f": " ",  # narrow no-break space
+        "\u2010": "-",  # hyphen
+        "\u2011": "-",  # non-breaking hyphen
+    }
+)
 
 
 def plain_text(text: str) -> str:
     """Remove Markdown markup that chat apps would show literally: headings, bold markers,
-    horizontal rules, and inline code ticks. Words, numbers, list markers, and line breaks are
-    kept exactly as they are."""
+    horizontal rules, and inline code ticks. Typographic spaces and hyphens become plain ones.
+    Words, numbers, list markers, and line breaks are kept exactly as they are."""
+    text = text.translate(_TYPOGRAPHY)
     text = _RULE.sub("", text)
     text = _HEADING.sub("", text)
     text = _BOLD_STARS.sub(r"\1", text)

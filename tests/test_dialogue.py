@@ -342,6 +342,13 @@ def test_plain_text_leaves_ordinary_text_alone(text):
     assert plain_text(text) == text
 
 
+def test_typographic_spaces_and_hyphens_become_plain_characters():
+    """Seen with gpt-oss-20b: "5 Okt" written with a narrow no-break space never matched."""
+    reply = "Mulai 5\u202fOkt 2026 sampai 15\u00a0Okt, rentang 5\u201115 Okt, Rp\u20097.500.000."
+
+    assert plain_text(reply) == "Mulai 5 Okt 2026 sampai 15 Okt, rentang 5-15 Okt, Rp 7.500.000."
+
+
 def test_a_masked_account_is_not_mistaken_for_bold_markup():
     """Seen with the real model: "***9589" next to bold labels was turned into "*9589"."""
     reply = (
