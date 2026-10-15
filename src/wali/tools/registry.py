@@ -322,9 +322,27 @@ def _plain(value: Any) -> Any:
     return value
 
 
-def _capped(items: list[Any]) -> dict[str, Any]:
+def _listing_order(invoice: Invoice) -> tuple[int, int, str]:
+    """Open invoices first, soonest due first; then the others, most recent first."""
+    if invoice.status == "open":
+        return (0, invoice.due_date.toordinal(), invoice.id)
+    return (1, -invoice.due_date.toordinal(), invoice.id)
+
+
+def _capped(items: list[Any], *, hint: str | None = None) -> dict[str, Any]:
     shown = items[:MAX_LIST_ITEMS]
-    return {"items": shown, "total": len(items), "truncated": len(items) > len(shown)}
+    result: dict[str, Any] = {
+        "items": shown,
+        "total": len(items),
+        "truncated": len(items) > len(shown),
+    }
+    if result["truncated"]:
+        result["note"] = (
+            f"Only {len(shown)} of {len(items)} are shown. The rest are not listed here, so do "
+            "not conclude that something is missing or paid from this list alone."
+            + (f" {hint}" if hint else "")
+        )
+    return result
 
 
 class ToolRegistry:
@@ -534,10 +552,16 @@ class ToolRegistry:
             if (args.status is None or i.status == args.status)
             and (args.due_before is None or i.due_date < args.due_before)
         ]
+        # The list is capped, so what a person can still act on must come first: open invoices by
+        # due date, then the rest from the most recent. Oldest-first would fill the list with
+        # paid invoices from months ago and hide the open ones.
+        chosen.sort(key=_listing_order)
         views = [self._invoice_view(i, tuple(everything)) for i in chosen]
         return {
             "today": self._today(),
-            "invoices": _capped(views),
+            "invoices": _capped(
+                views, hint='To see the invoices still to pay, ask again with status "open".'
+            ),
             # Given so that the model never has to add amounts up itself.
             "amount_total": sum((i.amount for i in chosen), Decimal("0")),
             "amount_total_overdue": sum(

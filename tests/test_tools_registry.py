@@ -260,6 +260,43 @@ def test_list_transactions_says_when_it_is_cut_short(tools):
     assert "shorter period" in result["note"]
 
 
+def test_an_unfiltered_list_shows_the_open_invoices_first(tools, ready):
+    """Seen with the real model: asked for every payable, it got the 50 oldest, all paid, and
+    answered that nothing was open. There are 85 payables and 14 of them are open."""
+    everything = data(
+        tools.execute("list_invoices", {"kind": "payable", "status": None, "due_before": None})
+    )["invoices"]
+    only_open = data(
+        tools.execute("list_invoices", {"kind": "payable", "status": "open", "due_before": None})
+    )["invoices"]
+    shown = everything["items"]
+
+    assert everything["total"] > registry_module.MAX_LIST_ITEMS
+    assert everything["truncated"] is True
+    assert len(shown) == registry_module.MAX_LIST_ITEMS
+    # Every open invoice is in the list, ahead of all the others.
+    open_ids = [i["id"] for i in shown if i["status"] == "open"]
+    assert sorted(open_ids) == sorted(i["id"] for i in only_open["items"])
+    assert [i["status"] for i in shown[: len(open_ids)]] == ["open"] * len(open_ids)
+    # Open ones by due date; the rest, most recent first.
+    due = [i["due_date"] for i in shown[: len(open_ids)]]
+    assert due == sorted(due)
+    rest = [i["due_date"] for i in shown[len(open_ids) :]]
+    assert rest == sorted(rest, reverse=True)
+    # The model is told that the list is partial, so it does not read it as complete.
+    assert "Only 50 of" in everything["note"]
+    assert 'status "open"' in everything["note"]
+
+
+def test_a_list_that_fits_has_no_truncation_note(tools, ready):
+    listed = data(
+        tools.execute("list_invoices", {"kind": "payable", "status": "open", "due_before": None})
+    )["invoices"]
+
+    assert listed["truncated"] is False
+    assert "note" not in listed
+
+
 def test_list_invoices_filters_and_marks_what_needs_checking(tools, ready, ground_truth):
     planted = ground_truth["invoices"]
     overdue = data(
