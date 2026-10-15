@@ -41,6 +41,14 @@ def _shown(text: str, full: bool) -> str:
     return text if full or len(text) <= MAX_SHOWN_CHARS else text[:MAX_SHOWN_CHARS] + " [...]"
 
 
+def show_calls(calls: list[dict[str, Any]]) -> None:
+    """The tool calls behind a failure, so a wrong answer can be told from a wrong question."""
+    for call in calls:
+        outcome = f"ERROR {call['error_code']}" if call["is_error"] else "ok"
+        arguments = json.dumps(call["arguments"], ensure_ascii=False)
+        print(f"      call: {call['name']} {arguments} -> {outcome}")
+
+
 def show_dialogue(result: DialogueResult, *, full: bool) -> None:
     print(f"\n=== {result.id} {'PASS' if result.passed else 'FAIL'}  {result.title} ===")
     for turn in result.turns:
@@ -52,6 +60,8 @@ def show_dialogue(result: DialogueResult, *, full: bool) -> None:
         )
         for problem in turn.problems:
             print(f"      FAIL: {problem}")
+        if turn.problems:
+            show_calls(turn.calls)
     for problem in result.problems:
         print(f"      FAIL (final state): {problem}")
 
@@ -67,6 +77,8 @@ def show_task(result: TaskResult, user: list[str], *, full: bool) -> None:
     )
     for problem in result.problems:
         print(f"      FAIL: {problem}")
+    if result.problems:
+        show_calls(result.calls)
 
 
 def show_attack(result: AttackResult, *, full: bool) -> None:

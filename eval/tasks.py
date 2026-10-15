@@ -17,7 +17,16 @@ import yaml
 from pydantic import Field
 
 from eval.checks import items_handled, mentions_date, reconciliation_f1, tool_results
-from eval.dialogues import FinalExpect, TurnExpect, _same, _Spec, check_final, check_turn, run_turn
+from eval.dialogues import (
+    FinalExpect,
+    TurnExpect,
+    _same,
+    _Spec,
+    check_final,
+    check_turn,
+    run_turn,
+    summarise_calls,
+)
 from eval.harness import EvalWorld
 from wali.models import Role
 
@@ -77,6 +86,8 @@ class TaskResult:
     items_handled: int = 0
     shortfall_days_ahead: int | None = None
     extra: dict[str, Any] = field(default_factory=dict)
+    # The tool calls with their arguments, for finding out why a task failed.
+    calls: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def passed(self) -> bool:
@@ -193,4 +204,5 @@ def run_task(task: Task, world: EvalWorld, ground_truth: dict[str, Any]) -> Task
         reconciliation_f1=f1,
         items_handled=items_handled(traces),
         shortfall_days_ahead=days_ahead,
+        calls=summarise_calls(traces),
     )

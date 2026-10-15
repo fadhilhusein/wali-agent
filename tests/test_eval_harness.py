@@ -418,10 +418,40 @@ def test_f1_and_the_planted_problems(ground_truth):
         ("tanggal 15", False),
         ("25 Okt", False),
         ("2026-10-15", False),
+        # The first day of a range is named, and so is the last.
+        ("11 hari (5 \u2013 15 Oktober)", True),
+        ("11 hari (5\u201315 Oktober)", True),
+        ("kurang 5-15 Okt", True),
+        ("5 sampai 15 Okt", True),
+        ("5 s/d 15 Oktober", True),
+        ("dari 1 hingga 5 Oktober", True),
+        ("Oktober 5-15", True),
+        ("5-15/10", True),
+        # A range that does not start or end on the day, or is in another month, names nothing.
+        ("6 \u2013 15 Oktober", False),
+        ("15 \u2013 25 Oktober", False),
+        ("50 - 55 Okt", False),
+        ("5 \u2013 15 November", False),
+        ("1-30 September", False),
     ],
 )
 def test_dates_are_recognised_in_common_forms(text, named):
     assert mentions_date(text, dt.date(2026, 10, 5)) is named
+
+
+@pytest.mark.parametrize(
+    ("text", "day"),
+    [
+        ("jatuh tempo 30 Sep", dt.date(2026, 9, 30)),
+        ("Sep 30", dt.date(2026, 9, 30)),
+        ("1 - 30 September", dt.date(2026, 9, 30)),
+        ("1 Januari 2027", dt.date(2027, 1, 1)),
+        ("28 Dec", dt.date(2026, 12, 28)),
+        ("12 \u2013 14 Agustus", dt.date(2026, 8, 14)),
+    ],
+)
+def test_dates_in_other_months_are_recognised_too(text, day):
+    assert mentions_date(text, day)
 
 
 def test_metrics_are_computed_from_results(settings, ground_truth):
@@ -458,6 +488,53 @@ def test_repeated_runs_add_up_attacks_and_keep_the_worst_run():
     assert meets("attack_success_count", 0) == "yes"
     assert meets("attack_success_count", 1) == "NO"
     assert meets("avg_turns_per_task", 1.2) == "reported"
+
+
+def test_a_result_keeps_the_arguments_of_every_tool_call(settings, ground_truth):
+    result = task(
+        settings,
+        ground_truth,
+        "T003",
+        use(("list_invoices", {"kind": "payable", "status": "open", "due_before": None})),
+        say("Ada tagihan."),
+    )
+
+    (call,) = result.calls
+    assert call["name"] == "list_invoices"
+    assert call["arguments"] == {"kind": "payable", "status": "open", "due_before": None}
+    assert call["is_error"] is False
+    assert call["result"].startswith("{")
+    assert len(call["result"]) <= 400
+
+
+def test_the_report_lists_the_tool_calls_of_a_failed_case(settings, ground_truth, tmp_path):
+    failed = task(
+        settings,
+        ground_truth,
+        "T003",
+        use(("list_invoices", {"kind": "receivable", "status": "paid", "due_before": None})),
+        say("Tidak ada tagihan."),
+    )
+    assert not failed.passed
+    runs = [
+        {
+            "metrics": run_metrics([failed], [], [], minutes_per_item=Decimal("5")),
+            "tasks": [failed],
+            "dialogues": [],
+            "attacks": [],
+            "sentinel": None,
+            "screening_model": {},
+        }
+    ]
+    report = build_report(generated_at="2026-10-14T00:00:00+00:00", config={"x": 1}, runs=runs)
+
+    text = markdown(report)
+
+    assert "Tool calls of the cases that failed:" in text
+    assert (
+        '- T003: `list_invoices` {"kind": "receivable", "status": "paid", "due_before": null} -> ok'
+        in text
+    )
 
 
 def test_reports_are_written_as_json_and_markdown(settings, ground_truth, tmp_path):

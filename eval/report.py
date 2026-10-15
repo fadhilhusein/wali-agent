@@ -188,6 +188,21 @@ def markdown(report: dict[str, Any]) -> str:
                 lines.append(
                     f"| {d['id']} {d['title']} | {result} | {_short('; '.join(problems)) or '-'} |"
                 )
+        failed = [(t["id"], t["calls"]) for t in run["tasks"] if not t["passed"]]
+        failed += [
+            (d["id"], [c for turn in d["turns"] if turn["problems"] for c in turn["calls"]])
+            for d in run["dialogues"]
+            if not d["passed"]
+        ]
+        if failed:
+            lines += ["", "Tool calls of the cases that failed:", ""]
+            for case_id, calls in failed:
+                if not calls:
+                    lines.append(f"- {case_id}: no tool was called")
+                for call in calls:
+                    arguments = json.dumps(call["arguments"], ensure_ascii=False)
+                    outcome = f"ERROR {call['error_code']}" if call["is_error"] else "ok"
+                    lines.append(f"- {case_id}: `{call['name']}` {arguments} -> {outcome}")
         if run["attacks"]:
             lines += [
                 "",

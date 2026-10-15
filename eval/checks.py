@@ -97,12 +97,26 @@ def items_handled(traces: Iterable[ToolTrace]) -> int:
 
 
 _MONTHS = {
-    10: ("okt", "oct", "oktober", "october"),
+    1: ("januari", "january", "jan"),
+    2: ("februari", "february", "feb"),
+    3: ("maret", "march", "mar"),
+    4: ("april", "apr"),
+    5: ("mei", "may"),
+    6: ("juni", "june", "jun"),
+    7: ("juli", "july", "jul"),
+    8: ("agustus", "august", "agu", "agt", "aug"),
+    9: ("september", "sept", "sep"),
+    10: ("oktober", "october", "okt", "oct"),
+    11: ("november", "nopember", "nov", "nop"),
+    12: ("desember", "december", "des", "dec"),
 }
+# What joins the two ends of a range: "5 - 15 Oktober", "5 sampai 15 Okt", "5 s/d 15 Okt".
+_RANGE_JOIN = r"\s*(?:[-\u2010-\u2015]|sampai(?:\s+dengan)?|s/d|s\.d\.?|hingga|to|until|through)\s*"
 
 
 def mentions_date(text: str, day: dt.date) -> bool:
-    """Whether a reply names a date, in the ways it is commonly written here."""
+    """Whether a reply names a date, in the ways it is commonly written here: as a single date
+    ("5 Okt", "Oct 5", "2026-10-05", "5/10") or as an end of a range ("5 - 15 Oktober")."""
     lowered = text.casefold()
     numeric = [
         day.isoformat(),
@@ -111,9 +125,24 @@ def mentions_date(text: str, day: dt.date) -> bool:
         f"tanggal {day.day}",
         f"tgl {day.day}",
     ]
-    names = _MONTHS.get(day.month, ())
+    names = _MONTHS[day.month]
     worded = [f"{day.day} {m}" for m in names] + [f"{m} {day.day}" for m in names]
-    return any(re.search(rf"(?<!\d){re.escape(form)}(?!\d)", lowered) for form in numeric + worded)
+    if any(re.search(rf"(?<!\d){re.escape(form)}(?!\d)", lowered) for form in numeric + worded):
+        return True
+
+    # The longest name first, so "oktober" is not read as "okt" followed by "ober".
+    month = "|".join(sorted(map(re.escape, names), key=len, reverse=True))
+    ends = rf"(?<!\d)(\d{{1,2}}){_RANGE_JOIN}(\d{{1,2}})(?!\d)"
+    ranges = [
+        rf"{ends}\s+(?:{month})(?![^\W\d_])",  # 5 - 15 Oktober
+        rf"(?:{month})(?![^\W\d_])\.?\s+{ends}",  # Oktober 5 - 15
+        rf"{ends}\s*/\s*0?{day.month}(?!\d)",  # 5 - 15 / 10
+    ]
+    return any(
+        day.day in (int(m.group(1)), int(m.group(2)))
+        for pattern in ranges
+        for m in re.finditer(pattern, lowered)
+    )
 
 
 # --- Invariants --------------------------------------------------------------------------------
