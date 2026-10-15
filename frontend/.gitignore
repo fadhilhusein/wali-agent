@@ -4,3 +4,5 @@
 /.env*
 !/.env.example
 *.tsbuildinfo
+/.npm-cache
+/test-results

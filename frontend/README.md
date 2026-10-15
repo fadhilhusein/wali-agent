@@ -20,7 +20,7 @@ In a second terminal, from `frontend/`:
 & 'D:\Program Files\nodejs\npm.cmd' run dev
 ```
 
-Open `http://127.0.0.1:3000`, which redirects to `/chat`. The sidebar links to `/chat`, `/approvals`, and `/mandate`. On phones, Menu opens the sidebar drawer; Escape closes it. The Next.js route handler proxies `/api/wali/*` to `http://127.0.0.1:8000` by default. To change the backend, copy `.env.example` to `.env.local` and set `WALI_API_ORIGIN` to its local origin. The browser does not call FastAPI directly; the server proxy sends JSON without the browser's `Origin` header and does not cache API responses.
+Open `http://127.0.0.1:3000`, which redirects to `/chat`. The sidebar links to `/chat`, `/approvals`, and `/mandate`. On phones, Menu opens the sidebar drawer; Escape closes it. Open Settings and help, or the role avatar, to change the simulation role. The Next.js route handler proxies `/api/wali/*` to `http://127.0.0.1:8000` by default. To change the backend, copy `.env.example` to `.env.local` and set `WALI_API_ORIGIN` to its local origin. The browser does not call FastAPI directly; the server proxy sends JSON without the browser's `Origin` header and does not cache API responses.
 
 The role selector stands in for login only in this local simulation. Anyone who can reach either server can select the owner role. Do not expose these servers to other machines or deploy this interface until authentication and authorization are designed for that environment.
 
@@ -36,3 +36,31 @@ The transcript and selected role are retained while navigating between pages in 
 ```
 
 The project uses Next.js App Router, TypeScript, Tailwind CSS v4, `components/ui`, and `motion/react`. The `components.json` file makes the structure compatible with shadcn component additions; the main Wali interface is a custom component in that directory. No shadcn CLI generation is needed to run it.
+
+## Paper chat interface
+
+The home and conversation states follow the supplied Paper React exports. Wali keeps English finance prompts and its existing API. The shared sidebar collapses on desktop, starts compact on tablets, and becomes a keyboard-accessible drawer on phones. Recent shows only the active in-tab conversation; saved history is not implemented. Copy works on assistant replies. Model selection, attachments, tools, microphone, feedback, and regeneration are disabled placeholders labeled Coming soon.
+
+Chat, Approvals, Mandate and the shared shell pair bundled Poppins headings (500/600, Latin subset) with Arial body text and controls. Fonts are served by the application without an external font service. The composer follows visual viewport height changes and the transcript only follows incoming messages when the reader is near the bottom.
+
+The Wali logo is derived from the supplied `loading.lottie`, preserved at `public/brand/wali.lottie`. The header and favicon use its first frame. A local Lottie SVG player loops the mark while processing and plays one cycle on a new reply; reduced motion and player-loading failures retain a static image. Run `npm run test:loading` against the frontend on port 3000 to check playback, completion, reduced motion and favicon assets with mocked API requests.
+
+The sidebar uses the logo's purple palette. Its compact state is 64 px wide with equal 44 px icon controls. Desktop open/close uses a 240 ms width transition; the phone drawer slides and its backdrop fades using Motion. Reduced motion switches states immediately. `npm run test:sidebar` verifies those transitions, proportions, colors and accessibility with mocked requests.
+
+Approvals and Mandate share Chat's typography, centered content width, pale panels and purple action controls. Approvals groups payment facts, proposed changes and warnings above each decision. Mandate explains drafting and review, with explicit connection, owner-only and pending-request states. `npm run test:finance` checks these pages with mocked payment/mandate requests, decision and draft failures, retries, role restrictions, keyboard activation, five viewport widths and twelve measured text/boundary contrast checks. Screenshots and results are written to `test-results/`; no model is called.
+
+## Browser regression checks
+
+After `npm ci`, start the frontend on a separate port:
+
+```powershell
+npm.cmd run dev -- --port 3005
+```
+
+In another terminal run `npm.cmd run test:ui`. Google Chrome must be installed; the test uses Playwright's `chrome` channel. To test another port, set `$env:WALI_TEST_ORIGIN = 'http://127.0.0.1:3006'` before running it.
+
+The test intercepts every `/api/wali/*` request and uses explicit test responses. It does not need FastAPI, call a model, or perform a financial action. It checks responsive layouts, chat failure recovery, blocked replies, clipboard success/failure, sidebar and profile keyboard behavior, role changes, approval flows, scroll behavior, and connection retry. Screenshots and results are written to ignored `test-results/`. These checks validate UI behavior, not live agent response quality or physical phone keyboards.
+
+`npm run test:profile` checks the avatar dropdown animation, role selector, keyboard focus and dismissal, mobile sidebar shortcut, five responsive widths, short-screen scrolling, reduced motion and five text/control contrast pairs. It uses mocked API responses on port 3000 by default and writes `profile-results.json` plus desktop/phone screenshots in `test-results/`.
+
+`npm run test:mobile-composer` checks the empty chat with Pixel 7 emulation at 393 x 700, 390 x 640, 320 x 568 and 320 x 400. It injects an oversized stored viewport measurement, verifies that the composer stays within the visible screen, scrolls to the final prompt, taps it, checks focus/send reachability and tests viewport shrinkage. All APIs are mocked; this does not reproduce physical browser chrome or a real phone keyboard.

@@ -8,11 +8,19 @@
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "format:check": "prettier --check app components lib"
+    "format:check": "prettier --check app components lib",
+    "test:ui": "node scripts/verify-chat.cjs",
+    "test:loading": "node scripts/verify-loading.cjs",
+    "test:sidebar": "node scripts/verify-sidebar.cjs",
+    "test:finance": "node scripts/verify-finance-pages.cjs",
+    "test:profile": "node scripts/verify-profile.cjs",
+    "test:mobile-composer": "node scripts/verify-mobile-composer.cjs"
   },
   "dependencies": {
     "@fontsource/outfit": "^5.3.0",
+    "@fontsource/poppins": "5.3.0",
     "clsx": "^2.1.1",
+    "lottie-web": "5.13.0",
     "motion": "^14.2.0",
     "next": "^16.4.0",
     "react": "^19.3.0",
@@ -26,6 +34,7 @@
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.0",
+    "playwright": "1.62.1",
     "postcss": "^8.5.30",
     "prettier": "^3.9.10",
     "tailwindcss": "^4.3.3",

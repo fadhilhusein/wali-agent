@@ -1,5 +1,7 @@
 # Wali Web Design Direction
 
+This file describes the original static Python demo. The current Next.js workspace follows the user-approved Paper frames, documented in [frontend/DESIGN.md](frontend/DESIGN.md).
+
 ## Design Read
 
 Wali is a financial-assistant workspace for small-business operators. The interface uses English
