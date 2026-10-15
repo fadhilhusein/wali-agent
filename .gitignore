@@ -31,3 +31,4 @@ eval/reports/*
 
 # Local editor and assistant settings
 .claude/
+wali-agent/
