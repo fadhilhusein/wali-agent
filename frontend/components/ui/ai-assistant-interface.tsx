@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { FormEvent, KeyboardEvent } from "react";
+import { animate, motion } from "motion/react";
+import type { FormEvent, KeyboardEvent, ReactNode } from "react";
 import { useWorkspace, type Message } from "@/components/workspace-provider";
 import { ChatIcon, type ChatIconName } from "./chat-icon";
 import { WaliLogo } from "./wali-logo";
+import { ChatBackground } from "./chat-background";
+import { PromptCard } from "./prompt-card";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 const prompts: { text: string; icon: ChatIconName }[] = [
   {
@@ -45,7 +49,48 @@ function FutureControl({
   );
 }
 
-function AssistantMessage({ message }: { message: Message }) {
+function MessageRow({
+  children,
+  className,
+  reducedMotion,
+  animateEntry = true,
+  role,
+}: {
+  children: ReactNode;
+  className: string;
+  reducedMotion: boolean;
+  animateEntry?: boolean;
+  role?: "status";
+}) {
+  return (
+    <motion.li
+      className={className}
+      role={role}
+      initial={
+        animateEntry && !reducedMotion
+          ? { opacity: 0, transform: "translateY(8px)" }
+          : false
+      }
+      animate={{ opacity: 1, transform: "translateY(0px)" }}
+      transition={{
+        duration: reducedMotion ? 0 : 0.24,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+    >
+      {children}
+    </motion.li>
+  );
+}
+
+function AssistantMessage({
+  message,
+  reducedMotion,
+  animateEntry,
+}: {
+  message: Message;
+  reducedMotion: boolean;
+  animateEntry: boolean;
+}) {
   const [copyStatus, setCopyStatus] = useState("");
   async function copy() {
     try {
@@ -58,7 +103,9 @@ function AssistantMessage({ message }: { message: Message }) {
     }
   }
   return (
-    <li
+    <MessageRow
+      reducedMotion={reducedMotion}
+      animateEntry={animateEntry}
       className={`paper-message paper-message-assistant${message.blocked ? " paper-message-blocked" : ""}`}
     >
       <WaliLogo className="paper-assistant-mark" state="reply" />
@@ -90,14 +137,19 @@ function AssistantMessage({ message }: { message: Message }) {
           {copyStatus}
         </p>
       </div>
-    </li>
+    </MessageRow>
   );
 }
 
 export function AIAssistantInterface() {
+  const pageRef = useRef<HTMLElement>(null);
+  const introPlayed = useRef(false);
+  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const followMessages = useRef(true);
+  const autoScrolling = useRef(false);
+  const scrollInitialized = useRef(false);
   const focusVersion = useRef(0);
   const {
     info,
@@ -113,6 +165,62 @@ export function AIAssistantInterface() {
     composerFocusVersion,
     sendMessage,
   } = useWorkspace();
+  const [existingMessageIds] = useState(
+    () => new Set(messages.map((message) => message.id)),
+  );
+
+  useEffect(() => {
+    if (!info || infoError || introPlayed.current) return;
+    if (
+      reducedMotion ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      introPlayed.current = true;
+      return;
+    }
+    const page = pageRef.current;
+    if (!page) return;
+    const controls: Array<ReturnType<typeof animate>> = [];
+    const finish = () => controls.forEach((control) => control.complete());
+    const frame = requestAnimationFrame(() => {
+      introPlayed.current = true;
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+      let cardIndex = 0;
+      Array.from(page.querySelectorAll<HTMLElement>("[data-chat-intro]"))
+        .filter((element) => element.getClientRects().length > 0)
+        .forEach((element) => {
+          const part = element.dataset.chatIntro;
+          const delay =
+            part === "greeting"
+              ? 0
+              : part === "question"
+                ? 0.08
+                : part === "prompt"
+                  ? 0.16 + cardIndex++ * 0.06
+                  : part === "composer"
+                    ? 0.4
+                    : 0.48;
+          controls.push(
+            animate(
+              element,
+              {
+                opacity: [0, Number(getComputedStyle(element).opacity)],
+                transform: ["translateY(10px)", "translateY(0px)"],
+              },
+              { duration: 0.4, delay, ease: [0.22, 1, 0.36, 1] },
+            ),
+          );
+        });
+      page.addEventListener("focusin", finish);
+      page.addEventListener("pointerdown", finish);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+      finish();
+      page.removeEventListener("focusin", finish);
+      page.removeEventListener("pointerdown", finish);
+    };
+  }, [info, infoError, reducedMotion]);
 
   useEffect(() => {
     if (composerFocusVersion === focusVersion.current) return;
@@ -122,9 +230,28 @@ export function AIAssistantInterface() {
 
   useEffect(() => {
     const scroll = scrollRef.current;
-    if (scroll && followMessages.current)
-      scroll.scrollTop = scroll.scrollHeight;
-  }, [messages, sending]);
+    const firstScroll = !scrollInitialized.current;
+    scrollInitialized.current = true;
+    if (!scroll || !messages.length || !followMessages.current) return;
+    const smooth = !reducedMotion && !firstScroll;
+    autoScrolling.current = smooth;
+    scroll.scrollTo({
+      top: scroll.scrollHeight,
+      behavior: smooth ? "smooth" : "instant",
+    });
+    if (scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 2)
+      autoScrolling.current = false;
+  }, [messages, sending, reducedMotion]);
+
+  function interruptAutoScroll() {
+    const scroll = scrollRef.current;
+    if (!scroll) return;
+    if (autoScrolling.current)
+      scroll.scrollTo({ top: scroll.scrollTop, behavior: "instant" });
+    autoScrolling.current = false;
+    followMessages.current =
+      scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 100;
+  }
 
   useEffect(() => {
     const input = composerRef.current;
@@ -152,16 +279,34 @@ export function AIAssistantInterface() {
 
   return (
     <section
+      ref={pageRef}
       className={`paper-chat${messages.length ? " paper-chat-active" : ""}`}
       aria-labelledby="chat-title"
     >
+      <ChatBackground />
       <div
         ref={scrollRef}
         className="paper-chat-scroll"
         onScroll={(event) => {
           const el = event.currentTarget;
-          followMessages.current =
-            el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+          const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+          if (autoScrolling.current) {
+            if (distance < 2) {
+              autoScrolling.current = false;
+              followMessages.current = true;
+            }
+            return;
+          }
+          followMessages.current = distance < 100;
+        }}
+        onWheel={(event) => {
+          if (event.deltaY < 0) interruptAutoScroll();
+        }}
+        onPointerDown={interruptAutoScroll}
+        onTouchStart={interruptAutoScroll}
+        onKeyDown={(event) => {
+          if (["ArrowUp", "PageUp", "Home"].includes(event.key))
+            interruptAutoScroll();
         }}
       >
         {infoError && (
@@ -186,26 +331,21 @@ export function AIAssistantInterface() {
         {info && !infoError && messages.length === 0 && (
           <div className="paper-welcome">
             <h1 id="chat-title">
-              <span>Hello</span>
-              <span>How can I help you today?</span>
+              <span data-chat-intro="greeting">{"Hello, i'm Wali"}</span>
+              <span data-chat-intro="question">How can I help you today?</span>
             </h1>
             <div className="paper-prompts" aria-label="Suggested prompts">
               {prompts.map((prompt) => (
-                <button
+                <PromptCard
                   key={prompt.icon}
-                  className="paper-prompt"
-                  type="button"
+                  text={prompt.text}
+                  icon={prompt.icon}
                   disabled={!role || busy}
-                  onClick={() => {
+                  onSelect={() => {
                     setDraft(`${prompt.text}.`);
                     composerRef.current?.focus();
                   }}
-                >
-                  <span>{prompt.text}</span>
-                  <span className="paper-prompt-icon">
-                    <ChatIcon name={prompt.icon} />
-                  </span>
-                </button>
+                />
               ))}
             </div>
           </div>
@@ -218,19 +358,27 @@ export function AIAssistantInterface() {
             <ol className="paper-messages" aria-label="Conversation messages">
               {messages.map((message) =>
                 message.author === "you" ? (
-                  <li
+                  <MessageRow
                     key={message.id}
+                    reducedMotion={reducedMotion}
+                    animateEntry={!existingMessageIds.has(message.id)}
                     className="paper-message paper-message-user"
                   >
                     <span className="sr-only">You</span>
                     <div className="paper-user-bubble">{message.text}</div>
-                  </li>
+                  </MessageRow>
                 ) : (
-                  <AssistantMessage key={message.id} message={message} />
+                  <AssistantMessage
+                    key={message.id}
+                    message={message}
+                    reducedMotion={reducedMotion}
+                    animateEntry={!existingMessageIds.has(message.id)}
+                  />
                 ),
               )}
               {sending && (
-                <li
+                <MessageRow
+                  reducedMotion={reducedMotion}
                   className="paper-message paper-message-assistant"
                   role="status"
                 >
@@ -242,7 +390,7 @@ export function AIAssistantInterface() {
                   <p className="paper-thinking">
                     Thinking through your request…
                   </p>
-                </li>
+                </MessageRow>
               )}
             </ol>
           </div>
@@ -257,7 +405,11 @@ export function AIAssistantInterface() {
             {chatNotice.text}
           </div>
         )}
-        <form className="paper-composer" onSubmit={submit}>
+        <form
+          className="paper-composer"
+          data-chat-intro="composer"
+          onSubmit={submit}
+        >
           <label className="sr-only" htmlFor="message-input">
             Message Wali
           </label>
@@ -293,11 +445,18 @@ export function AIAssistantInterface() {
             </div>
           </div>
         </form>
-        <p className="paper-disclaimer my-4 opacity-50">
+        <p
+          className="paper-disclaimer my-4 opacity-50"
+          data-chat-intro="caption"
+        >
           Wali can make mistakes. Check its answers. Local simulation only.
           Attachments, tools & voice: Coming soon
         </p>
-        <div id="composer-instructions" className="paper-input-hint">
+        <div
+          id="composer-instructions"
+          className="paper-input-hint"
+          data-chat-intro="caption"
+        >
           <span>Enter to send · Shift+Enter for a new line</span>
           <span>{draft.length.toLocaleString("en-US")}/4,000</span>
         </div>

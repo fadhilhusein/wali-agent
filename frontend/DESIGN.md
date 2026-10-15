@@ -17,12 +17,16 @@ This direction supersedes the earlier Next.js blue/white design. Root DESIGN.md 
 | Secondary text | `#444746`, `#505762` | Instructions and unavailable feature labels |
 | Large secondary heading | `#666B70` | Defer to the greeting while retaining contrast |
 | Brand and active navigation | `#7C2F81`, `#632268` on `#ECDCEF` | Match the supplied logo and identify the current destination |
-| Prompt gradient | White to `#82B7FF` | Reproduce the approved Paper suggestion treatment |
+| Prompt mesh | `#E0EAFF`, `#6B005F`, `#F75092`, `#9F50D3` | Match the user-supplied Paper MeshGradient card reference |
 | Warning | `#744018` on `#FFF7EC` | Distinguish blocked output with explicit words |
 
 Use locally bundled Poppins at weights 500 and 600 for headings and the Wali wordmark, paired with Arial for conversation text, finance details and controls. The user requested this font combination after the Paper implementation: Poppins gives the headings a rounded geometric identity while Arial keeps dense financial information compact. Only Latin subsets are loaded with font-display swap; no external font request is needed. Desktop headings are 48 px with a 56 px line height; chat and composer text are 16 px. Smaller labels supplement controls rather than replacing their accessible names.
 
 ## Composition and reflow
+
+Prompt cards use the user's Paper MeshGradient reference (scale 1, distortion 0.8, swirl 0.1, frame 24216.3, opacity 0.64). The four real finance prompts, 16 px text and white 40 px icon discs are retained. Following the user's brightness adjustment, the dark veil is reduced from 50% to 38% over a plum base. The conservative full-white shader bound still gives 4.52:1 white-text contrast without relying on shadow. Cards play at speed 1 for 1.8 seconds on mounting, then pause at the current frame. Mouse hover or visible keyboard focus resumes playback without resetting the frame; leaving or blurring pauses it. Touch does not activate persistent hover. Reduced motion keeps them still, and a CSS gradient retains their appearance without WebGL. WebGL capability is checked once per document and shared with the page background; each card uses a 60,000 pixel rendering budget. Mobile retains horizontal prompt rows and independent welcome scrolling.
+
+The user-supplied Paper GrainGradient (shaders-react 0.0.81) now supplies a quiet Chat-only background. Lavender, mauve and pale blue replace the saturated source colors and black backdrop. Home opacity is 0.30; conversations use 0.16, with a white center veil to protect the reading lane. Softness 0.85, intensity 0.25 and noise 0.08 keep the texture subordinate to text. Speed is 0.12 on desktop and 0.07 on mobile; reduced motion sets it to zero. This user-requested ambient background is the explicit exception to the original MOTION 1 direction. The shader is loaded only in the client and capped at 480,000 pixels (240,000 on mobile); an equivalent pale CSS background remains when WebGL2 is unavailable. The layer is decorative and cannot intercept pointer events. Approvals, Mandate and the shared header/sidebar retain their existing surfaces.
 
 - Desktop: 280 px sidebar, 72 px header, 760 px content/composer; white space separates the greeting and suggestions from input. Composer radius is 32 px, suggestions 16 px, and user messages 24 px, following the exported shapes.
 - Tablet, 761 to 1100 px: sidebar starts at 64 px and suggestions use two columns. The sidebar toggle can expand or collapse it.
@@ -33,6 +37,10 @@ Use locally bundled Poppins at weights 500 and 600 for headings and the Wali wor
 - A manual scroll upward prevents incoming replies from moving the reader. Sending a new message resumes following the bottom. Reduced-motion preferences remain honored by the existing global styles and unchanged approval animations.
 
 ## Product behavior
+
+New user messages, assistant replies and the processing row enter with a 240 ms opacity/8 px translate animation, without scaling or changing layout. Messages already present on entering Chat stay still. Reply updates use native smooth scrolling while following the bottom; intermediate programmatic scroll events do not accidentally disable following. Wheel-up, pointer/touch input and upward navigation keys interrupt automatic scrolling. Reading older messages preserves that position; sending a new message resumes following. Reduced motion uses immediate message updates and instant scrolling, and restoring existing history positions the transcript immediately.
+
+On entering Chat, Motion animates the greeting at 0 ms, its question at 80 ms, four prompt cards at 160/220/280/340 ms, the composer at 400 ms and helper text at 480 ms. Each moves upward by 10 px while fading in over 400 ms, without bounce or layout changes. It begins after role information loads, once per mounted Chat page, and does not replay on typing, reset or role changes. Reduced motion skips it; focus or pointer interaction completes it immediately. Existing computed opacity is preserved, including the user's muted footer. The mesh-card intro and hover behavior remain separate. This requested entrance sequence is another explicit exception to the initial motion dial.
 
 Wali, Simulation, and the actual role initial replace Nova, the invented model name, and the sample user. Suggestions cover reconciliation, cash forecasts, invoice review, and cash-flow recommendations. They fill the composer and never send automatically. Recent derives its single title from the active conversation's first user message; it does not imply persisted history.
 

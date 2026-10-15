@@ -104,7 +104,7 @@ async function main() {
   try {
     await page.goto(`${origin}/chat`);
     await page
-      .getByRole("heading", { name: "Hello How can I help you today?" })
+      .getByRole("heading", { name: /How can I help you today\?/ })
       .waitFor();
     assert.equal(await page.locator(".paper-prompt").count(), 4);
     assert.equal(
@@ -178,7 +178,7 @@ async function main() {
     );
     const contrastPairs = [
       ["1f1f1f", "ffffff", 4.5],
-      ["1f1f1f", "82b7ff", 4.5],
+      ["ffffff", "886e89", 4.5],
       ["666b70", "ffffff", 4.5],
       ["505762", "f0f4f9", 4.5],
       ["632268", "ecdcef", 4.5],

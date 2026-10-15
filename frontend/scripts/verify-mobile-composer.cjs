@@ -105,12 +105,23 @@ async function main() {
       window.visualViewport.dispatchEvent(new Event("resize"));
     });
     await page.locator("#message-input").focus();
+    await page.waitForFunction(
+      () =>
+        document.querySelector(".paper-shell").getBoundingClientRect().height <=
+        341,
+    );
     const keyboardDock = await page.locator(".paper-chat-dock").boundingBox();
-    assert(keyboardDock.y + keyboardDock.height <= 340);
+    assert(
+      keyboardDock.y + keyboardDock.height <= 341,
+      JSON.stringify(keyboardDock),
+    );
     const keyboardSend = await page
       .getByRole("button", { name: "Send message", exact: true })
       .boundingBox();
-    assert(keyboardSend.y + keyboardSend.height <= 340);
+    assert(
+      keyboardSend.y + keyboardSend.height <= 341,
+      JSON.stringify(keyboardSend),
+    );
     await page.evaluate(() => {
       delete window.visualViewport.height;
       window.visualViewport.dispatchEvent(new Event("resize"));

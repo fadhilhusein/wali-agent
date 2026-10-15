@@ -292,11 +292,42 @@
   font-family: var(--font-body);
 }
 .paper-chat {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex: 1;
   min-width: 0;
   min-height: 0;
   flex-direction: column;
+}
+.paper-chat-background {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0.3;
+  background:
+    radial-gradient(ellipse at 0% 10%, #d5a6da, transparent 60%),
+    radial-gradient(ellipse at 100% 90%, #acd6f1, transparent 60%), #fff;
+}
+.paper-chat-background::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 45%),
+    rgb(255 255 255 / 85%) 30% 70%,
+    rgb(255 255 255 / 45%)
+  );
+}
+.paper-chat-active .paper-chat-background {
+  opacity: 0.16;
+}
+.paper-chat-grain {
+  position: absolute;
+  inset: 0;
 }
 .paper-chat-scroll {
   flex: 1;
@@ -343,6 +374,9 @@
   gap: 12px;
 }
 .paper-prompt {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -353,15 +387,40 @@
   border: 0;
   border-radius: 16px;
   text-align: left;
-  background: linear-gradient(180deg, #fff 0%, #f5f9ff 45%, #82b7ff 100%);
-  color: #1f1f1f;
+  background: #4a1749;
+  color: #fff;
   font-size: 16px !important;
   line-height: 24px !important;
 }
-.paper-prompt:hover:not(:disabled) {
-  background: linear-gradient(180deg, #f8fbff, #deecff 48%, #70aaff);
+.paper-prompt-surface {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 10% 0%, #e0eaff, transparent 70%),
+    linear-gradient(135deg, #6b005f, #f75092 65%, #9f50d3);
+  opacity: 0.74;
+}
+.paper-prompt-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* background: rgb(35 2 39 / 10%); */
+}
+.paper-prompt-mesh {
+  position: absolute;
+  inset: 0;
+}
+.paper-prompt-text {
+  position: relative;
+  text-shadow: 0 2px 3px rgb(0 0 0 / 25%);
+}
+.paper-prompt:focus-visible {
+  outline-offset: 3px;
 }
 .paper-prompt-icon {
+  position: relative;
   display: grid;
   place-items: center;
   width: 40px;
@@ -907,10 +966,6 @@
     min-height: 84px;
     padding: 14px 16px;
     gap: 16px;
-    background: linear-gradient(110deg, #fff, #e0edff 65%, #82b7ff);
-  }
-  .paper-prompt:hover:not(:disabled) {
-    background: linear-gradient(110deg, #f8fbff, #deecff 65%, #70aaff);
   }
   .paper-prompt-icon {
     align-self: center;

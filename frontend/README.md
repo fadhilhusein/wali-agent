@@ -64,3 +64,11 @@ The test intercepts every `/api/wali/*` request and uses explicit test responses
 `npm run test:profile` checks the avatar dropdown animation, role selector, keyboard focus and dismissal, mobile sidebar shortcut, five responsive widths, short-screen scrolling, reduced motion and five text/control contrast pairs. It uses mocked API responses on port 3000 by default and writes `profile-results.json` plus desktop/phone screenshots in `test-results/`.
 
 `npm run test:mobile-composer` checks the empty chat with Pixel 7 emulation at 393 x 700, 390 x 640, 320 x 568 and 320 x 400. It injects an oversized stored viewport measurement, verifies that the composer stays within the visible screen, scrolls to the final prompt, taps it, checks focus/send reachability and tests viewport shrinkage. All APIs are mocked; this does not reproduce physical browser chrome or a real phone keyboard.
+
+Chat uses the user-supplied Paper GrainGradient from `@paper-design/shaders-react@0.0.81`, loaded on the client with a pale CSS fallback. Lavender/mauve/blue colors, a white veil and lower opacity during conversation keep the background secondary. Reduced motion stops playback; mobile uses a lower speed and pixel budget. `npm run test:background` checks shader initialization, reduced motion, WebGL fallback, prompt/send behavior, mobile bounds and Chat-only scope with mocked APIs, and saves screenshots in `test-results/`.
+
+`npm run test:prompt-mesh` checks the Paper MeshGradient prompt cards: initial playback then pause, actual frame progression on hover, pause on pointer leave, keyboard focus/activation, reduced motion and responsive bounds. Screenshots and `prompt-mesh-results.json` are saved in `test-results/`. No model calls or financial actions are used.
+
+`npm run test:chat-intro` checks stagger timings for greeting, question, prompt cards and composer, natural completion, immediate completion on focus, reduced-motion bypass, unchanged footer opacity, no replay on typing/New chat, and mobile composer bounds. API responses are mocked.
+
+`npm run test:message-motion` checks real message animation durations, intermediate native smooth-scroll positions, interruption while reading previous messages, resumed following on a new send, restored history without replay, and reduced-motion updates. Replies are mocked and no model or financial action is invoked.
