@@ -1,75 +1,99 @@
-# Antislop Delivery Gate: Wali Web V2
+# Delivery Gate: Wali Paper chat
 
-Mode: `during` (session override). Design Read: financial chat workspace for small-business operators, English, light, ENERGY 2 / RHYTHM 2 / MOTION 2. Verification date: 2026-10-14.
+Verified on 2026-10-15. Mode: after (session choice). Direction: user-supplied Paper React exports, Wali identity, English, shared shell, and explicit future-feature placeholders. ENERGY 2 / RHYTHM 1 / MOTION 1.
 
 ## Hard gate
 
-- R-02 PASS: source and authored docs scanned; no em dash copy remains.
-- R-03 PASS: browser document width matched viewport at 1440, 1024, 768, 375, and 320 CSS px; the 375 x 400 drawer scrolls to its role selector.
-- R-17 PASS: no unverified metrics or statistics in the interface.
-- R-18 PASS: no testimonials, avatars, or invented people.
-- R-23 PASS: identity is the user-approved Wali text wordmark; no new logo or image asset was created.
-- R-24 PASS: sidebar links only to the built `/chat`, `/approvals`, and `/mandate` pages; `/` redirects to Chat.
-- R-25 PASS: contrast checker measured 5.02:1 or better for normal text pairings and 7.73:1 for white on the primary action blue.
-- R-26 PASS: Chat, Approvals, and Mandate links navigate; quick prompts focus the composer; role, Send, New chat, draft, Confirm, and Decline perform API actions. Future features are plain text.
-- R-27 PASS: chat connection, approvals, and mandate actions present loading, empty, error, processing, and result feedback as applicable.
-- R-28 PASS: there is no FAQ or generic filler section.
-- R-32 PASS: Menu opens with focus inside and Escape restores focus to Menu; browser measurement found a visible 2.4 px keyboard focus outline. Space activated a quick prompt, Enter sent, and Shift+Enter inserted a newline.
-- R-33 PASS: all UI behavior lives in React source and the fixed Next.js route handler; no external injection script.
-- R-34 PASS: light-only is the explicit project choice; there is no broken theme toggle.
-- R-35 PASS: TypeScript, ESLint, formatting, production build, and 18 `tests/test_web.py` cases passed; live browser covered navigation, role switch, quick prompt, send, New chat, draft, Confirm, Decline, and mobile drawer. The 320 CSS px reflow check covers the layout budget of a 640 px viewport at 200% zoom.
-- R-36 PASS: the simulation is labeled and no security, compliance, or performance claim is made.
-- R-37 PASS: the approved blue/white direction and dials are recorded in `DESIGN.md` before delivery.
-- R-38 PASS: displayed financial data and results come from FastAPI; suggested prompt text is clearly user-editable input.
+- R-02 PASS: newly authored UI copy uses ordinary punctuation; no em dash is authored in the new components.
+- R-03 PASS: browser checks document and composer bounds at 1440, 1024, 768, 390, and 320 CSS px; screenshots confirm reflow and no overlapping sidebar content.
+- R-17 PASS: no product metrics or invented financial statistics are added; actual request counts come from the provider.
+- R-18 PASS: no testimonials or fictional people are present.
+- R-23 PASS: Wali's new header, favicon and reply mark use the user-supplied loading.lottie asset; the role-derived avatar still identifies the actual role. The original archive is preserved and no invented image or profile is added.
+- R-24 PASS: the sidebar links only to Chat, Approvals, Mandate, and the active in-tab conversation; browser navigation passed.
+- R-25 PASS: the regression script verifies 19 text/background pairings, including the purple navigation, sidebar labels, avatar and gradient endpoints for the large greeting; normal text meets 4.5:1 and large greeting text meets 3:1. See generated results.json for ratios.
+- Finance contrast PASS: twelve browser-computed text/boundary pairings pass. New primary-button text measures 8.14:1; secondary and decline boundaries measure 4.16:1 and 4.35:1. Ratios are saved in finance-results.json.
+- R-26 PASS: active controls invoke tested navigation, reset, prompt, submit, Copy, settings, role and decision behavior; unavailable controls are disabled and explicitly labeled, as requested.
+- R-27 PASS: connection loading/error/retry, empty chat, sending, blocked reply, failed send with restored draft, reset failure and outcome notices were exercised; original queue states remain intact.
+- R-28 PASS: no FAQ is introduced; help describes the implemented workflow.
+- R-32 PASS: browser checks Space on a prompt, visible focus, Enter/Shift+Enter, drawer focus wrap, profile dropdown Escape/outside/Tab dismissal and restored focus.
+- R-33 PASS: functionality is authored in React and CSS source. The regression script mocks network responses only in its test browser; it does not inject application functionality.
+- R-34 PASS: light-only matches the approved design; there is no theme toggle.
+- R-35 PASS: production build, standalone typecheck, ESLint, format check and browser regression completed; screenshots cover home/conversation on desktop/phone. Physical phone keyboard and native zoom are explicit verification boundaries below.
+- R-36 PASS: visible Simulation labels and settings explain the demo; no fabricated security, performance or customer claims are added.
+- R-37 PASS: DESIGN.md records the user-approved visual source, colors, type, composition and three dials.
+- R-38 PASS: real replies and counts remain API-derived; screenshots use test-only fixtures, and Recent is derived from the actual active user message.
 
 ## Purpose gate
 
-- R-01 PASS: there are no decorative gradients or glows.
-- R-04 PASS: no generic icon set is loaded; simple nav glyphs identify the three real destinations and text labels carry meaning.
-- R-06 PASS: Outfit and the small uppercase status labels have stated character and scanning purposes in `DESIGN.md`.
-- R-07 PASS: there is no decorative background grid; ledger dividers structure financial details.
-- R-08 PASS: Send and the link from a successful draft to Approvals use arrows to signal forward action; no repeated arrow decoration appears on cards.
-- R-09 PASS: the simulation label sits next to the role selector and explicitly says it is not login.
-- R-10 PASS: no glassmorphism is used.
-- R-12 PASS: only the composer has a restrained shadow, to prioritize entry.
-- R-13 PASS: no glow is applied across controls or surfaces.
-- R-14 PASS: three equal prompt choices deliberately have equal visual weight.
-- R-19 PASS: MotionJS enters page content, messages, and queue changes briefly; reduced-motion preference removes movement.
-- R-22 PASS: no generic illustration or stock image is used.
+- R-01 PASS: suggestion and greeting gradients reproduce the supplied Paper reference; they distinguish starting choices and greeting hierarchy.
+- R-04 PASS: compact line icons identify the same controls as the supplied exports; visible or accessible labels identify their actions.
+- R-06 PASS: Chat, Approvals, Mandate and the shared shell use the requested Poppins headings paired with Arial body text; type sizes establish greeting, page heading, reply and instruction hierarchy.
+- R-07 PASS: no decorative background grid is added.
+- R-08 PASS: the arrow is reserved for the reference's send action.
+- R-09 PASS: Simulation labels describe the actual runtime purpose and are not invented trust badges.
+- R-10 PASS: there is no glassmorphism or translucent content surface.
+- R-12 PASS: the composer uses a flat fill; focus outlines communicate focus rather than decorative elevation.
+- R-13 PASS: no decorative glow is introduced.
+- R-14 PASS: four equal prompt cards represent equal starting choices; the phone layout changes to readable horizontal rows.
+- R-19 PASS: Lottie processing/reply behavior remains verified. Sidebar changes use a 240 ms desktop width transition and a Motion transform for phone enter/exit with a fading backdrop. Browser checks confirm real intermediate positions, rapid toggles, and immediate reduced-motion states; existing approval animations remain unchanged.
+- R-22 PASS: no generic stock illustration or image is added.
 
 ## Liveliness
 
-- Dials PASS: ENERGY 2 / RHYTHM 2 / MOTION 2 are explicit in `DESIGN.md`.
-- Consistency PASS: calm blue/white visual system, differentiated approval rail, and short state motion match those dials.
-- Focal point PASS: Chat centers the question and composer; Approvals centers the request details; Mandate centers the draft action and review path.
-- Whitespace PASS: the open chat state is separate from denser decisions and draft instructions.
-- Accent PASS: Wali blue marks identity and real actions; amber is reserved for risk.
-- Motif PASS: ledger borders, tabular amounts, and compact labels give the three pages one Wali visual system.
-- Design Read PASS: audience, language, and workspace purpose were declared before UI generation.
+- Dials PASS: ENERGY 2 / RHYTHM 1 / MOTION 1 is documented and reflected in the approved gradient greeting/cards, repeated task choices, and static chat surfaces.
+- Focal point PASS: the greeting leads the home state; the transcript leads the conversation state, as confirmed in screenshots.
+- Whitespace PASS: the centered 760 px content lane separates prompts from the dock at 1440 x 900 without imposing fixed desktop spacing on phones.
+- Accent PASS: purple marks selected navigation and finance actions; prompt gradients follow the approved Chat reference, and warnings retain semantic colors.
+- Identity PASS: finance prompts, actual role context, approval counts and the real mandate workflow identify Wali throughout the shared shell.
+- Design Read PASS: audience, language, source frames, layout and typography are recorded in DESIGN.md.
 
 ## Craftsmanship and quality locks
 
-- C-1 PASS: major choices have product purposes recorded in `DESIGN.md`.
-- C-2 PASS: no dead interactive controls; unsupported features are labeled “Coming soon” as text.
-- C-3 PASS: conversation, composer, prompts, approval decisions, and mandate drafting correspond to real product tasks.
-- C-4 PASS: error, empty, loading, blocked, and processing states exist; browser reflow and keyboard checks passed.
-- C-5 PASS: no fabricated claim, metric, testimonial, or supplier is in frontend source.
-- R-05 PASS: the layout is an operational chat plus approval ledger, not a landing-page template.
-- R-11 PASS: radius varies between status capsule, buttons, composer, and cards.
-- R-15 PASS: action labels are specific: Send, New chat, Draft mandate, Confirm, Decline.
-- R-16 PASS: UI copy contains no AI marketing buzzwords.
-- R-20 PASS: ledger hierarchy, distinct decision page, and explicit approval workflow retain Wali's character beyond the wordmark.
-- R-21 PASS: light-only follows the explicit approved direction.
-- R-29 PASS: white/cloud, ink, blue, and amber risk accent have defined semantic roles.
-- R-30 PASS: only Gemini's sidebar and centered-chat composition were adapted; Wali retains its own palette, routes, finance copy, and data model.
-- R-31 PASS: layout, typography, borders, restrained motion, and component grouping each have a one-line reason in `DESIGN.md`.
+- C-1 PASS: DESIGN.md gives a concrete purpose for the source palette, layout, type, radii and response structure.
+- C-2 PASS: tested active controls have real behavior; future capabilities are intentionally disabled rather than simulated.
+- C-3 PASS: prompts and navigation correspond to Wali's finance workflow; no unrelated template sections are added.
+- C-4 PASS: empty/loading/error/blocked states, narrow/short viewports, keyboard flows and scroll preservation were checked in the browser.
+- C-5 PASS: product data remains API-backed; test fixture content stays in the test script.
+- R-05 PASS: both states follow the requested chat composition rather than a landing-page layout.
+- R-11 PASS: prompt, composer, user bubble and controls use the distinct corner sizes from the reference.
+- R-15 PASS: Send message, New chat, Copy reply, Settings and help, Confirm and Decline name concrete actions.
+- R-16 PASS: the new copy uses plain finance tasks and instructions, without marketing filler.
+- R-20 PASS: actual role and approval flows, domain prompts and simulation context retain Wali's identity.
+- R-21 PASS: white/pale surfaces follow the explicitly approved light theme.
+- R-29 PASS: surface, text, active, gradient and warning roles are documented with exact values.
+- R-30 PASS: close reference reproduction is intentional and explicitly requested; generic sample content is replaced with Wali behavior.
+- R-31 PASS: major visual choices and their practical purposes are recorded in DESIGN.md.
 
-## Verification record
+## Reproduction and limits
 
-- `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run format:check`, and `npm.cmd run build`: PASS. Build exposes `/`, `/chat`, `/approvals`, and `/mandate`.
-- `uv run --isolated --python 3.11 pytest tests/test_web.py`: 18 passed; no `.py` source or test was changed.
-- Live FastAPI plus Next.js: role switch cleared transcript, quick prompt focused composer, chat returned a reply, transcript survived route navigation, New chat reset, draft linked to Approvals, Confirm and Decline removed requests and updated counts, and non-owner Mandate displayed the restriction: PASS.
-- Proxy contract: unchanged fixed-action route handler; prior proxy checks covered owner-only 403, foreign Origin 403, malformed JSON 400, and API GET `Cache-Control: no-store`.
-- Browser console: no warnings or errors with both local servers running; the expected API-offline error was also shown in the UI and Retry recovered.
-- API-offline browser check: both conversation and queue show explicit error states and a connection retry.
-- Blocked reply rendering follows `blocked` from the API and labels it in text; the existing backend test covers the blocked response contract.
+Message motion revision PASS (scoped): `test:message-motion` checks 240 ms native message animations, intermediate smooth-scroll positions, interrupted scrolling and preserved reading position, following resumed by a new send, immediate reduced-motion behavior and existing history without entrance replay. Full Chat and entrance regression suites pass. Typecheck, lint, formatting and production build pass. Motion uses opacity/transform, retains semantic list/status elements and existing API-backed content, and adds no placeholder timing or model call. Existing desktop/mobile layout checks remain in the full Chat suite.
+
+Chat entrance revision PASS (scoped): `test:chat-intro` records actual native animation timings for greeting/question, four cards and composer, and checks natural completion, immediate completion on focus, preserved footer opacity, no replay on typing/reset, reduced-motion bypass and visible mobile controls with mocked APIs. Full Chat and MeshGradient card suites pass. Typecheck, lint, format check and production build pass. Motion uses opacity plus a 10 px transform without bounce; no geometry or data/API change is introduced. The sequence is explicitly requested, scoped to Chat and completes within 880 ms. Error/loading content stays visible and no live finance/model action is used.
+
+Prompt brightness adjustment PASS (scoped): the dark veil is reduced from 50% to 38%, revealing more of the supplied pink/purple mesh. A conservative completely white shader composited through this veil and the 0.64 surface opacity over #4A1749 gives 4.52:1 white-text contrast, excluding shadow. This supersedes the previous 5.93:1 bound. The prompt-mesh playback/keyboard/responsive suite passes and the new desktop screenshot was reviewed. No fresh production build is claimed for this CSS-only adjustment.
+
+Prompt MeshGradient revision PASS (scoped): `test:prompt-mesh` checks initial speed 1 followed by automatic pause, actual frame progression during hover, pause on pointer leave/blur, visible keyboard focus, Space filling/focusing the composer, reduced motion and five responsive widths. Desktop/mobile screenshots were reviewed. A full-white shader under the 50% dark veil at 0.64 surface opacity over #4A1749 yields a conservative 5.93:1 white-text contrast, excluding text shadow. Existing blue-card contrast evidence is superseded by this calculation. Full Chat, mobile-composer and background/fallback suites pass; typecheck, lint, formatting and production build pass. Motion matches the explicit intro/hover request, the layer is decorative and cannot intercept input, and CSS fallback preserves usable cards without WebGL. Physical-device GPU performance is not measured.
+
+Paper background revision PASS (scoped): `test:background` verifies actual shader mounting, normal speed, reduced-motion zero speed, WebGL-disabled CSS fallback, prompt/send/reply behavior, mobile bounds, conversation opacity and absence on Mandate. Desktop, mobile and conversation screenshots were reviewed. Chat and mobile-composer regression suites pass; typecheck, lint, format check and production build pass. The mobile test now waits for the viewport layout to settle before measuring its keyboard-size simulation. Home opacity 0.30 and conversation opacity 0.16 are multiplied by a white veil of at least 45%, increasing to 85% in the reading lane. Even a completely black shader would leave the #505762 body text at 4.96:1 and #666B70 large headings at 3.66:1 under the weakest veil. Existing user-authored footer opacity is outside that contrast claim. Ambient motion is explicitly requested; reduced motion stops it. Physical phone GPU performance is not measured. All browser test API responses are mocked.
+
+Mobile browser follow-up PASS (emulated scope): mobile shell is fixed and capped by 100svh plus the measured available height, with safe-area/keyboard viewport metadata. `test:mobile-composer` passes all four sizes, stale measurements, prompt scrolling/focus and a reduced VisualViewport while focused, followed by restoration. Full Chat and profile suites pass. Physical Safari and Android browser UI remain unverified; the screenshots supplied by the user supersede earlier assumptions that the first viewport correction resolved those environments. This follow-up was run in dev; no new production-build result is claimed.
+
+Empty mobile composer correction PASS: `npm run test:mobile-composer` uses Pixel 7 emulation at 393 x 700, 390 x 640, 320 x 568 and 320 x 400. The test injects a stale oversized height, checks composer bounds, scrolls to the final prompt, taps it and verifies focus and visible Send controls. It also verifies updates after viewport shrinkage and no runtime errors. The screenshot was reviewed; Chat and profile regression suites and production build pass. Browser toolbar and keyboard behavior on the user's physical device remain unverified. No real model or finance action is used.
+
+Composer hint visibility correction PASS (scoped check): the row is hidden at 320, 390, 768 and 1023 px, and visible at 1024 and 1440 px, verified in Chrome with mocked APIs. The existing aria-describedby relationship is retained. This check supersedes earlier mobile hint typography evidence; no new full-suite or production-build result is claimed for this visibility-only correction.
+
+Poppins revision PASS: Poppins 500/600 Latin is bundled locally for headings and the Wali wordmark, paired with Arial body text. Browser font checks confirm Poppins is loaded and the expected computed font families are applied. The 390 px screenshot was reviewed; full Chat, finance and profile mock suites pass at their documented responsive sizes. Production build, including TypeScript checks, passes. Colors, API behavior and financial data are unchanged.
+
+Mobile header revision PASS: browser scroll checks on Chat, Approvals and Mandate at 320, 390 and 768 px keep the header at y=0. At widths up to 760 px it explicitly uses sticky positioning with a white background; the main flex panel permits content scrolling within its viewport. Composer helper text uses 10 px / 14 px mobile typography without reducing contrast. The 390 px screenshot was reviewed. Chat and profile regression suites, format check and production build pass. These checks use mocked APIs and do not claim physical-device testing.
+
+Profile dropdown revision PASS: `npm run test:profile` checks actual intermediate animation opacity, open focus, Tab order/departure, role switching, Escape, outside click, close button, mobile sidebar shortcut, five viewport widths, 320 x 400 scrolling constraints, reduced motion and no browser errors. Five browser-computed text/control contrast pairs pass. Desktop and phone screenshots were visually reviewed. The full Chat and finance regression suites, typecheck, lint, format check and production build passed after this revision. The dropdown replaces the previous modal; historical nested-modal behavior is superseded by closing the mobile drawer before opening the profile dropdown. The shadow distinguishes the overlay; the short transform/opacity transition connects it to its avatar trigger.
+
+Run `npm ci`, `npm run build`, then `npm run start -- --port 3005` in one terminal and `npm run test:ui` in another. The test uses installed Google Chrome and the locked Playwright dev dependency. Screenshots and detailed JSON results are generated in ignored `test-results/`.
+
+API calls are intercepted; no live model or financial action is performed. Earlier Paper screenshots used Arial as the Google Sans fallback; the current user-requested typography uses bundled Poppins headings with Arial body text. The 320 CSS px and 400 px-tall checks verify reflow and a reduced visible area; they do not claim physical-device keyboard or native 200% browser zoom testing. No new Python test results are claimed because the Python code and API contract are unchanged.
+
+Lottie revision: `npm run test:loading` checks both normal and reduced-motion browser contexts, actual SVG frame changes, processing loops, one-cycle completed replies, header logo, favicon assets, live preference changes, removal of the pending animation after success/failure, preserved drafts on errors, and no browser runtime errors. It defaults to the running frontend on port 3000; set `WALI_TEST_ORIGIN` to use another port. The script intercepts all Wali API requests. Its results and screenshots are saved in `test-results/`. The full UI suite also checks all five responsive widths with the new header logo.
+
+Sidebar revision: `npm run test:sidebar` checks animated desktop open/close, rapid toggles, the 64 px compact rail, four equal 44 x 44 px action targets centered at x=32, actual purple active colors, absence of zero badges, mobile enter/exit, inert/focus boundaries, reduced-motion switches and browser errors. Screenshots include `sidebar-collapsed.png`, `sidebar-expanded.png` and `sidebar-mobile-open.png`; measurements are saved in `sidebar-results.json`. All API responses are mocked.
+
+Finance revision: `npm run test:finance` checks populated/empty Approvals, payment and mandate details, long account wrapping, risk visibility, disabled processing controls, successful Confirm/Decline, failed decision preservation, queue and connection retries, owner-only drafting, keyboard draft activation, draft failure/processing/success, pending navigation and browser errors. Both pages are checked at 1440, 1024, 768, 390 and 320 CSS px. Twelve actual browser-computed contrast pairs meet 4.5:1 for text and 3:1 for interactive boundaries. Screenshots cover desktop, phone, empty queue and non-owner states; all requests are intercepted and no live model or financial action occurs. No backend, API contract or workspace-provider behavior is changed.
