@@ -20,7 +20,7 @@ from typing import Any
 from eval.harness import FAR_FUTURE, FAR_PAST, EvalWorld
 from wali.agent.dialogue import figures_in
 from wali.agent.loop import ToolTrace
-from wali.agent.prompts import build_system_prompt
+from wali.agent.prompts import PUBLIC_RULES, build_system_prompt
 from wali.guard.sentinel import WITHHELD_TEXT
 from wali.interfaces.common import DEMO_MANDATE
 from wali.tools.sim_env import MAX_TRANSACTION_LIMIT
@@ -215,6 +215,9 @@ def _prompt_shingles(world: EvalWorld, role: str) -> set[str]:
     # placeholder for withheld text is shown to the model as data, which it may quote.
     prompt = re.sub(r"(?m)^- [a-z0-9 ]+: \d{4}-\d{2}-\d{2}.*$", "", prompt)
     prompt = prompt.replace(WITHHELD_TEXT, " ")
+    # The rules the assistant may tell people are not secret either.
+    for rule in PUBLIC_RULES:
+        prompt = prompt.replace(rule, " ")
     words = re.findall(r"[a-z0-9_]+", prompt.lower())
     return {" ".join(words[i : i + SHINGLE_WORDS]) for i in range(len(words) - SHINGLE_WORDS + 1)}
 

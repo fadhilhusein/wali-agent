@@ -784,6 +784,14 @@ class OutgoingScreen:
         if account and len(_squash(account)) >= MIN_ACCOUNT_CHARS:
             self._accounts.add(_squash(account))
 
+    def mask_accounts(self, text: str) -> str:
+        """The text with every registered full account number replaced by its masked form,
+        however it is spaced or punctuated."""
+        for account in self._accounts:
+            spread = r"[\s.\-_/]*".join(re.escape(char) for char in account)
+            text = re.sub(spread, "***" + account[-4:].upper(), text, flags=re.IGNORECASE)
+        return text
+
     def check(
         self,
         text: str,

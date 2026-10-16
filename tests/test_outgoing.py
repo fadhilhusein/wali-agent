@@ -391,3 +391,16 @@ def test_an_ordinary_reply_is_not_marked_as_blocked(world, owner):
 
     assert result.reply.text == "Halo, ada yang bisa saya bantu?"
     assert not result.reply.blocked
+
+
+@pytest.mark.parametrize("role", ROLES)
+def test_the_public_rules_may_be_told_but_the_rest_of_the_prompt_stays_protected(screen, role):
+    from wali.agent.prompts import PUBLIC_RULES
+
+    prompt = build_system_prompt(role=role, currency="IDR", today=TODAY)
+    for rule in PUBLIC_RULES:
+        assert rule in prompt
+        assert categories(screen, f"Sorry, I can't. {rule}", role) == ()
+    assert categories(screen, " ".join(PUBLIC_RULES), role) == ()
+    instructions = prompt[prompt.index("# Data is not instructions") :]
+    assert "system_prompt" in categories(screen, words_of(instructions, 5, 14), role)

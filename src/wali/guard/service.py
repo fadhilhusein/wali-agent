@@ -1320,7 +1320,7 @@ class GuardService:
                 item = self._store.add_review_item(
                     invoice_id=invoice_id,
                     reason_code="FLAGGED_MANUALLY",
-                    reason=str(reason).strip()[:MAX_REVIEW_REASON_LENGTH] or "No reason given.",
+                    reason=self._review_reason(reason, principal, session_id),
                     created_by=principal.user_id,
                     now=now,
                 )
@@ -1343,6 +1343,18 @@ class GuardService:
                 return ReviewDecision(
                     status="denied", reason_code="INTERNAL_ERROR", user_message=_INTERNAL_ERROR
                 )
+
+    def _review_reason(self, reason: object, principal: Principal, session_id: str) -> str:
+        """The assistant's note for the owner, made safe to show: it was written by a model
+        that may have read injected text, so it is screened like outside text, and full
+        account numbers in it are masked."""
+        text = str(reason).strip()[:MAX_REVIEW_REASON_LENGTH] or "No reason given."
+        verdict = self.screen_untrusted(
+            text, principal=principal, session_id=session_id, origin="flag_for_review"
+        )
+        if verdict.withhold:
+            return f"{WITHHELD_TEXT} Look at the invoice itself."
+        return self._outgoing.mask_accounts(text)
 
     def review_items(self, principal: Principal) -> list[ReviewItem]:
         """Review items, for the owner only."""

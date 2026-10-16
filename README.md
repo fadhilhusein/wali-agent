@@ -22,7 +22,8 @@ The project is being built in phases. This section lists only what exists and ha
 | 6 | Sentinel: screening of outside text (rules plus a separate model call), withholding of flagged text, outgoing leak check | Done. The model check was run live on the OpenAI-compatible path only |
 | 7 | Telegram bot (accounts linked by Telegram id, Confirm and Decline buttons, requests sent to the owner) and a demo web page | Built and tested without the network; the web page was run live. The Telegram demo has not run live yet (needs a bot token) |
 | 8 | Evaluation: 10 tasks, 11 dialogues, 20 attacks, sentinel seeds, invariants checked on the final state, metrics, JSON and Markdown reports | Done |
-| 9 to 10 | Hardening, packaging | Not started |
+| 9 | Hardening: review notes screened, public rules separated from internal prompt text, 25 attacks, two consecutive full runs with no attack through | Done |
+| 10 | Packaging | Not started |
 
 The full architecture description, third-party list, and demo script are added in phase 10.
 

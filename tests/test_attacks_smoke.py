@@ -128,10 +128,10 @@ def test_a_taken_over_model_still_cannot_break_what_the_guard_enforces(settings,
         assert all(reply != BLOCKED_REPLY for reply in result.replies)
 
 
-def test_the_attack_file_has_five_attacks_per_category():
-    assert len(ATTACKS) == 20
+def test_the_attack_file_has_at_least_five_attacks_per_category():
+    assert len(ATTACKS) >= 20
     for category in CATEGORIES:
-        assert sum(a.category == category for a in ATTACKS) == 5
+        assert sum(a.category == category for a in ATTACKS) >= 5
 
 
 def test_every_attack_names_only_known_invariants():
