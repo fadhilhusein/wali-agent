@@ -1,0 +1,36 @@
+# Wali abstract AI mascot concepts
+
+Generated with the built-in image_gen tool using the imagegen skill on 2026-10-16. Four separate generations explore the user's revised direction: an abstract dot or AI-agent companion rather than an animal. Transparent PNG concepts; no website integration or mascot selection has been made. Original generated files remain in Codex generated_images.
+
+## 1. Wali Dot
+
+Image: [01-wali-dot.png](01-wali-dot.png)
+
+Final generation prompt:
+
+Use case: stylized-concept. Asset type: original mascot concept for Wali, a conversational AI finance assistant. Primary request: a minimalist abstract AI agent companion, NOT an animal. A restrained premium digital character, friendly, intelligent and calm, not a baby toy. One character only, centered full subject in square framing with ample margins. High quality stylized 3D product illustration, soft satin-matte finish, gentle studio illumination, clean silhouette that reads as a tiny chat avatar. Existing Wali palette: deep plum #7C2F81, soft lilac #ECDCEF, warm ivory #FAF8FB, optional charcoal #25212A. Eye expression should carry personality with very few features. Original design, do not copy ChatGPT, OpenAI, Android, Eve, Baymax, or other recognizable existing mascots or logos. Genuine transparent background and clean isolated alpha, no floor, no scenery, no shadows extending far outside subject. No text, letters, digits, money, coins, finance props, clothing, ears, fur, animal features, watermark, lightning, sparkles or decorative magic glow. Subject: a single almost spherical floating dark plum orb. The entire orb IS the agent, no separate head or body. Two tiny ivory rounded vertical eyes sit on the front upper-middle with a subtly attentive asymmetry; very subtle small curved mouth. A soft broad lilac reflected-light edge on one side provides form, not a neon ring. No limbs, no antenna, no headphones, no external attachments, no decorative badges. Slightly asymmetric organic sphere so it feels alive, but perfectly simple and smooth. An understated dot-like conversational presence.
+
+## 2. Wali Pebble
+
+Image: [02-wali-pebble.png](02-wali-pebble.png)
+
+Final generation prompt:
+
+Use case: stylized-concept. Asset type: original mascot concept for Wali, a conversational AI finance assistant. Primary request: a minimalist abstract AI agent companion, NOT an animal. A restrained premium digital character, friendly, intelligent and calm, not a baby toy. One character only, centered full subject in square framing with ample margins. High quality stylized 3D product illustration, soft satin-matte finish, gentle studio illumination, clean silhouette that reads as a tiny chat avatar. Existing Wali palette: deep plum #7C2F81, soft lilac #ECDCEF, warm ivory #FAF8FB, optional charcoal #25212A. Eye expression should carry personality with very few features. Original design, do not copy ChatGPT, OpenAI, Android, Eve, Baymax, or other recognizable existing mascots or logos. Genuine transparent background and clean isolated alpha, no floor, no scenery, no shadows extending far outside subject. No text, letters, digits, money, coins, finance props, clothing, ears, fur, animal features, watermark, lightning, sparkles or decorative magic glow. Subject: one upright soft pebble-shaped AI companion, body and head a single cohesive warm ivory vertical rounded form, about 1.3 times taller than wide. A smoothly recessed dark plum rounded face panel in its upper half with two pale lilac short pill-shaped eyes, no mouth. Two very small smoothly integrated stub arms near the lower sides, one giving a subtle welcoming gesture. No legs, no feet; gently floating. A narrow lavender lower edge and subtle plum side seam. Simple sophisticated helper-agent silhouette, not a humanoid astronaut or a famous robot.
+
+## 3. Wali Pixel
+
+Image: [03-wali-pixel.png](03-wali-pixel.png)
+
+Final generation prompt:
+
+Use case: stylized-concept. Asset type: original mascot concept for Wali, a conversational AI finance assistant. Primary request: a minimalist abstract AI agent companion, NOT an animal. A restrained premium digital character, friendly, intelligent and calm, not a baby toy. One character only, centered full subject in square framing with ample margins. High quality stylized 3D product illustration, soft satin-matte finish, gentle studio illumination, clean silhouette that reads as a tiny chat avatar. Existing Wali palette: deep plum #7C2F81, soft lilac #ECDCEF, warm ivory #FAF8FB, optional charcoal #25212A. Eye expression should carry personality with very few features. Original design, do not copy ChatGPT, OpenAI, Android, Eve, Baymax, or other recognizable existing mascots or logos. Genuine transparent background and clean isolated alpha, no floor, no scenery, no shadows extending far outside subject. No text, letters, digits, money, coins, finance props, clothing, ears, fur, animal features, watermark, lightning, sparkles or decorative magic glow. Subject: a floating heavily rounded lilac cube, shown three-quarter view, the cube IS the AI agent, not a head on a body. Front face rich plum seamlessly integrated like a satin glass inset, with two short ivory softly curved eyes suggesting a small relaxed smile. Cube corners very rounded but a clearly square silhouette, broad clean surfaces, a single tiny pink corner accent. No mouth, no limbs, no antenna, no headphones, no extra blocks. Tiny minimal friendly interface spirit, sophisticated and compact.
+
+## 4. Wali Core
+
+Image: [04-wali-core.png](04-wali-core.png)
+
+Final generation prompt:
+
+Use case: stylized-concept. Asset type: original mascot concept for Wali, a conversational AI finance assistant. Primary request: a minimalist abstract AI agent companion, NOT an animal. A restrained premium digital character, friendly, intelligent and calm, not a baby toy. One character only, centered full subject in square framing with ample margins. High quality stylized 3D product illustration, soft satin-matte finish, gentle studio illumination, clean silhouette that reads as a tiny chat avatar. Existing Wali palette: deep plum #7C2F81, soft lilac #ECDCEF, warm ivory #FAF8FB, optional charcoal #25212A. Eye expression should carry personality with very few features. Original design, do not copy ChatGPT, OpenAI, Android, Eve, Baymax, or other recognizable existing mascots or logos. Genuine transparent background and clean isolated alpha, no floor, no scenery, no shadows extending far outside subject. No text, letters, digits, money, coins, finance props, clothing, ears, fur, animal features, watermark, lightning, sparkles or decorative magic glow. Subject: one abstract geometric AI companion composed of four softly inflated plum and lavender rounded diamond tiles tightly joined into a compact rounded diamond silhouette. The join between tiles is subtle and continuous so it reads as ONE character. A central warm ivory small rounded face area is integrated into the front, with two tiny dark plum vertical pill eyes, no mouth. This four-part structure connects to Wali's geometric identity while being a new friendly mascot, not lettering or a printed logo. No limbs, no body below it, no orbiting pieces or detached components. Gentle floating three-quarter orientation; exceptionally simple sculpted matte geometry.
+

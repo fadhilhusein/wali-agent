@@ -1,6 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ChatIcon, type ChatIconName } from "@/components/ui/chat-icon";
+import { WorkflowDemo } from "./workflow-demo";
+import {
+  ArrowLeftRight,
+  ChartLine,
+  ClipboardCheck,
+  FlaskConical,
+  Lightbulb,
+  MessageSquare,
+  ReceiptText,
+  SlidersHorizontal,
+  type LucideIcon,
+} from "lucide-react";
 import {
   LandingEntrance,
   LandingHeader,
@@ -11,31 +22,31 @@ import "./landing.css";
 const capabilities: {
   title: string;
   description: string;
-  icon: ChatIconName;
+  icon: LucideIcon;
 }[] = [
   {
     title: "Transaction reconciliation",
     description:
       "Compare transactions and identify records that need a closer look.",
-    icon: "chart",
+    icon: ArrowLeftRight,
   },
   {
     title: "Cash-flow forecasting",
     description:
       "Explore your cash position over the coming weeks with the records available.",
-    icon: "calendar",
+    icon: ChartLine,
   },
   {
     title: "Invoice review",
     description:
       "Review outstanding invoices, due dates and details before making a decision.",
-    icon: "invoice",
+    icon: ReceiptText,
   },
   {
     title: "Financial recommendations",
     description:
       "Discuss practical next steps in the context of your business finances.",
-    icon: "bulb",
+    icon: Lightbulb,
   },
 ];
 
@@ -45,18 +56,21 @@ const steps = [
     description:
       "Ask Wali about transactions, invoices or cash flow. Keep the questions and their context together in Chat.",
     label: "Chat",
+    icon: MessageSquare,
   },
   {
     title: "Set the boundaries",
     description:
       "Draft spending rules in Mandate. A draft needs the owner’s review before the rules take effect.",
     label: "Mandate",
+    icon: SlidersHorizontal,
   },
   {
     title: "Review the requests",
     description:
       "Requests that need a decision appear in Approvals. Inspect the details and warnings, then confirm or decline.",
     label: "Approvals",
+    icon: ClipboardCheck,
   },
 ];
 
@@ -140,7 +154,7 @@ export function LandingPage() {
           <div className="wl-capability-grid">
             {capabilities.map((item) => (
               <article key={item.title}>
-                <ChatIcon name={item.icon} />
+                <item.icon size={24} strokeWidth={1.75} aria-hidden="true" />
                 <h3>{item.title}</h3>
                 <p>{item.description}</p>
               </article>
@@ -165,13 +179,17 @@ export function LandingPage() {
               A conversation to understand the numbers. A place to define rules
               and review the decisions that need you.
             </p>
+            <WorkflowDemo />
           </div>
           <ol className="wl-steps">
-            {steps.map((step, index) => (
+            {steps.map((step) => (
               <li key={step.label}>
-                <span className="wl-step-number" aria-hidden="true">
-                  0{index + 1}
-                </span>
+                <step.icon
+                  className="wl-step-icon"
+                  size={20}
+                  strokeWidth={1.75}
+                  aria-hidden="true"
+                />
                 <div>
                   <span className="wl-step-label">{step.label}</span>
                   <h3>{step.title}</h3>
@@ -189,7 +207,10 @@ export function LandingPage() {
         >
           <div className="wl-simulation-inner">
             <div>
-              <span className="wl-simulation-label">Local simulation</span>
+              <span className="wl-simulation-label">
+                <FlaskConical size={20} strokeWidth={1.75} aria-hidden="true" />
+                Local simulation
+              </span>
               <h2 id="simulation-title">
                 Room to explore.
                 <br />

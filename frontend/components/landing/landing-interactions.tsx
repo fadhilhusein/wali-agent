@@ -5,7 +5,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { animate } from "motion/react";
-import { ChatIcon } from "@/components/ui/chat-icon";
+import { Menu, X } from "lucide-react";
 import { useWebGlSupport } from "@/lib/use-webgl-support";
 
 const LandingMesh = dynamic(() => import("./landing-mesh"), { ssr: false });
@@ -76,10 +76,10 @@ export function LandingHeader() {
           >
             <summary ref={summaryRef} aria-label="Navigation menu">
               <span className="wl-menu-open-icon">
-                <ChatIcon name="menu" />
+                <Menu size={20} strokeWidth={1.75} aria-hidden="true" />
               </span>
               <span className="wl-menu-close-icon">
-                <ChatIcon name="close" />
+                <X size={20} strokeWidth={1.75} aria-hidden="true" />
               </span>
             </summary>
             <nav aria-label="Mobile navigation">

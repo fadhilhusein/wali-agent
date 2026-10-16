@@ -45,6 +45,29 @@ async function main() {
     );
     assert.equal(await page.locator(".paper-shell").count(), 0);
     assert.match(await page.title(), /Wali \| Clearer finances/);
+    for (const [selector, size, count] of [
+      [".wl-capability-grid .lucide", 24, 4],
+      [".wl-steps .lucide", 20, 3],
+      [".wl-simulation-label .lucide", 20, 1],
+      [".wl-mobile-menu .lucide", 20, 2],
+    ]) {
+      const icons = page.locator(selector);
+      assert.equal(await icons.count(), count);
+      for (const icon of await icons.all()) {
+        assert.equal(await icon.getAttribute("width"), String(size));
+        assert.equal(await icon.getAttribute("stroke-width"), "1.75");
+        assert.equal(await icon.getAttribute("aria-hidden"), "true");
+      }
+    }
+    assert.equal(
+      await page
+        .locator(".wl-hero .lucide, .wl-brand .lucide, .wl-footer .lucide")
+        .count(),
+      0,
+    );
+    check(
+      "Selective Lucide icons with approved sizing, stroke and decorative semantics",
+    );
     await page.waitForFunction(
       () => document.querySelector(".wl-mesh")?.paperShaderMount?.speed > 0,
     );

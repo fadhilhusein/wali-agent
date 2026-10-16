@@ -20,6 +20,9 @@
   color: inherit;
   text-decoration: none;
 }
+.wl-landing .lucide {
+  flex-shrink: 0;
+}
 .wl-landing :focus-visible {
   outline: 2px solid var(--wl-brand);
   outline-offset: 4px;
@@ -314,10 +317,179 @@
   max-width: 360px;
   margin-top: 24px;
 }
+.wl-workflow > .wl-steps {
+  align-self: center;
+}
 .wl-steps {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+.wl-demo {
+  margin-top: 32px;
+  border: 1px solid var(--wl-line);
+  border-radius: 20px;
+  background: #faf8fb;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.wl-demo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--wl-line);
+  background: #fff;
+}
+.wl-demo-agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+.wl-demo-label {
+  color: var(--wl-muted);
+  font-size: 11px;
+  text-align: right;
+}
+.wl-demo .wali-logo {
+  position: relative;
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.wl-demo .wali-logo-fallback,
+.wl-demo .wali-logo-player {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.wl-demo .wali-logo-player {
+  visibility: hidden;
+}
+.wl-demo .wali-logo[data-playback="playing"] .wali-logo-player {
+  visibility: visible;
+}
+.wl-demo .wali-logo[data-playback="playing"] .wali-logo-fallback {
+  visibility: hidden;
+}
+.wl-demo .wali-logo-player svg {
+  width: 100%;
+  height: 100%;
+}
+.wl-demo-accessible {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.wl-demo-transcript {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  list-style: none;
+  padding: 20px;
+  margin: 0;
+}
+.wl-demo-message {
+  width: 90%;
+}
+.wl-demo-user {
+  align-self: flex-end;
+}
+.wl-demo-assistant {
+  align-self: flex-start;
+}
+.wl-demo-speaker {
+  display: block;
+  font-size: 11px;
+  color: var(--wl-muted);
+  margin-bottom: 5px;
+}
+.wl-demo-user .wl-demo-speaker {
+  text-align: right;
+}
+.wl-demo-bubble {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--wl-ink);
+}
+.wl-demo-user .wl-demo-bubble {
+  background: #ecdcef;
+}
+.wl-demo-text {
+  position: relative;
+}
+.wl-demo-measure {
+  visibility: hidden;
+}
+.wl-demo-copy {
+  position: absolute;
+  inset: 0;
+}
+.wl-demo-processing {
+  min-height: 28px;
+  padding-inline: 20px;
+  color: var(--wl-muted);
+  font-size: 12px;
+}
+.wl-demo-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 20px 16px;
+  min-height: 100px;
+}
+.wl-demo-footer > span {
+  color: var(--wl-muted);
+  font-size: 11px;
+}
+.wl-demo-controls {
+  display: flex;
+  gap: 4px;
+  min-height: 44px;
+}
+.wl-demo-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  border-radius: 10px;
+  color: var(--wl-brand-strong);
+  font-size: 12px;
+}
+.wl-demo-controls button:hover {
+  background: #ecdcef;
+}
+@keyframes wl-demo-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+.wl-demo-dots {
+  display: inline-block;
+  animation: wl-demo-pulse 900ms ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wl-demo-dots {
+    animation: none;
+  }
 }
 .wl-steps li {
   display: flex;
@@ -326,11 +498,9 @@
   border-top: 1px solid var(--wl-line);
   padding: 24px 0 28px;
 }
-.wl-step-number {
+.wl-step-icon {
   color: var(--wl-brand);
-  font-size: 13px;
-  padding-top: 3px;
-  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
 }
 .wl-step-label {
   color: var(--wl-brand);
@@ -365,7 +535,9 @@
 .wl-simulation-label {
   color: var(--wl-brand-strong);
   font-size: 13px;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 20px;
 }
 .wl-simulation-inner p {

@@ -30,6 +30,10 @@ The transcript and selected role are retained while navigating between pages in 
 
 ## Checks
 
+Landing icons come from the pinned `lucide-react` dependency. `test:landing` checks the scoped icon counts, dimensions, decorative semantics and stroke width; `test:workflow-demo` also checks the Pause/Play state change and Replay icon while exercising the existing controls.
+
+`npm run test:workflow-demo` exercises the scripted How it works conversation: viewport start, partial replies, stable panel height, Pause/Resume, Replay, automatic offscreen/tab pause, completion without looping, reduced motion, no-JavaScript transcript, five responsive widths, control sizes and five computed text contrast pairs. It verifies zero Wali API requests and saves `workflow-demo-results.json` and screenshots in `test-results/`.
+
 `npm run test:landing` checks `/` at 1440, 1024, 768, 390 and 320 CSS px, sticky navigation, working anchors and Chat entry points, mobile menu focus, shader playback/pixel limits, reduced motion, contrast, no-WebGL fallback and no-JavaScript content. It asserts zero Wali API calls on the landing page and intercepts workspace requests after navigation. Screenshots `landing-*.png` and `landing-results.json` are written to ignored `test-results/`. Set `WALI_TEST_ORIGIN` to test a different local port.
 
 ```powershell
