@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "format:check": "prettier --check app components lib",
     "test:ui": "node scripts/verify-chat.cjs",
+    "test:landing": "node scripts/verify-landing.cjs",
     "test:loading": "node scripts/verify-loading.cjs",
     "test:sidebar": "node scripts/verify-sidebar.cjs",
     "test:finance": "node scripts/verify-finance-pages.cjs",
