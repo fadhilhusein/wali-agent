@@ -20,13 +20,17 @@ In a second terminal, from `frontend/`:
 & 'D:\Program Files\nodejs\npm.cmd' run dev
 ```
 
-Open `http://127.0.0.1:3000`, which redirects to `/chat`. The sidebar links to `/chat`, `/approvals`, and `/mandate`. On phones, Menu opens the sidebar drawer; Escape closes it. Open Settings and help, or the role avatar, to change the simulation role. The Next.js route handler proxies `/api/wali/*` to `http://127.0.0.1:8000` by default. To change the backend, copy `.env.example` to `.env.local` and set `WALI_API_ORIGIN` to its local origin. The browser does not call FastAPI directly; the server proxy sends JSON without the browser's `Origin` header and does not cache API responses.
+Open `http://127.0.0.1:3000` for the public landing page. **Open Wali** enters `/chat`; `/chat`, `/approvals`, and `/mandate` also work directly. The landing page is server-rendered outside the workspace provider and makes no Wali API requests. Its example prompt is presentation only.
+
+The workspace sidebar links to Chat, Approvals, and Mandate. On phones, Menu opens the sidebar drawer; Escape closes it. Open Settings and help, or the role avatar, to change the simulation role. The Next.js route handler proxies `/api/wali/*` to `http://127.0.0.1:8000` by default. To change the backend, copy `.env.example` to `.env.local` and set `WALI_API_ORIGIN` to its local origin. The browser does not call FastAPI directly; the server proxy sends JSON without the browser's `Origin` header and does not cache API responses.
 
 The role selector stands in for login only in this local simulation. Anyone who can reach either server can select the owner role. Do not expose these servers to other machines or deploy this interface until authentication and authorization are designed for that environment.
 
 The transcript and selected role are retained while navigating between pages in the same tab. Switching roles clears the transcript. There is no persistent history because Wali has no history endpoint. Only the owner can draft a mandate; drafting creates an approval request, not an automatic confirmation.
 
 ## Checks
+
+`npm run test:landing` checks `/` at 1440, 1024, 768, 390 and 320 CSS px, sticky navigation, working anchors and Chat entry points, mobile menu focus, shader playback/pixel limits, reduced motion, contrast, no-WebGL fallback and no-JavaScript content. It asserts zero Wali API calls on the landing page and intercepts workspace requests after navigation. Screenshots `landing-*.png` and `landing-results.json` are written to ignored `test-results/`. Set `WALI_TEST_ORIGIN` to test a different local port.
 
 ```powershell
 & 'D:\Program Files\nodejs\npm.cmd' run typecheck
