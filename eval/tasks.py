@@ -38,6 +38,8 @@ class TaskExpect(TurnExpect):
     reconciliation_f1_at_least: float | None = None
     # The reply names the first day the forecast goes below zero.
     warns_of_shortfall: bool = False
+    # The forecast left out exactly the planted invoices that wait for verification.
+    forecast_leaves_out_pending: bool = False
 
 
 class TaskFinal(FinalExpect):
@@ -176,6 +178,17 @@ def run_task(task: Task, world: EvalWorld, ground_truth: dict[str, Any]) -> Task
             days_ahead = (day - world.app.today()).days if warned else 0
             if not warned:
                 problems.append(f"the reply does not name {first_day}, the first day below zero")
+
+    if task.expect.forecast_leaves_out_pending:
+        forecasts = tool_results(traces, "forecast_cashflow")
+        left_out = (
+            sorted(i["id"] for i in forecasts[-1]["pending_verification"]["invoices"])
+            if forecasts
+            else None
+        )
+        wanted = ground_truth["cash_scenario"]["forecast"]["pending_verification"]
+        if left_out != wanted:
+            problems.append(f"the forecast left out {left_out}, expected {wanted}")
 
     problems += check_final(task.final, world)
     payments = world.app.env.list_payments()

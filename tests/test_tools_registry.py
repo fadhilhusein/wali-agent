@@ -318,8 +318,12 @@ def test_list_invoices_filters_and_marks_what_needs_checking(tools, ready, groun
     for pair in planted["duplicate_invoices"]:
         assert "possible_duplicate" in by_id[pair["duplicate"]]["flags"]
     fraud = by_id[planted["account_change_fraud"][0]["invoice_id"]]
-    assert "document_names_a_bank_account" in fraud["flags"]
+    assert "asks_for_a_different_bank_account" in fraud["flags"]
     assert fraud["document_text"]
+    unverified = by_id[planted["unverified_supplier"][0]["invoice_id"]]
+    assert unverified["flags"] == ["supplier_account_not_verified"]
+    anomaly = by_id[planted["amount_anomaly"][0]["invoice_id"]]
+    assert anomaly["flags"] == ["amount_above_usual"]
     assert all("stated_account" not in i for i in by_id.values())
     clean = [i for i in by_id.values() if i["id"] not in flagged_invoice_ids(ground_truth)]
     assert clean and all(i["flags"] == [] for i in clean)
@@ -370,11 +374,12 @@ def test_reconcile_period_reports_the_planted_problems(tools, ground_truth):
 
 
 def test_forecast_cashflow_warns_about_the_planted_squeeze(tools, ground_truth):
-    expected = ground_truth["cash_scenario"]["forecast"]["expected"]
+    scenario = ground_truth["cash_scenario"]["forecast"]
+    expected = scenario["expected_confirmed"]
 
     result = data(tools.execute("forecast_cashflow", {"horizon_days": 30}))
 
-    assert result["today"] == ground_truth["cash_scenario"]["forecast"]["start"]
+    assert result["today"] == scenario["start"]
     assert result["days_below_zero"]["first"] == expected["first_shortfall_date"]
     assert result["lowest_date"] == expected["lowest_date"]
     assert Decimal(result["lowest_balance"]) < 0
@@ -382,11 +387,66 @@ def test_forecast_cashflow_warns_about_the_planted_squeeze(tools, ground_truth):
     assert result["cash_buffer"] == "3000000"
     assert result["first_day_below_cash_buffer"] <= expected["first_shortfall_date"]
     assert {i["label"] for i in result["repeating_items_used"]} >= {"sales", "payroll"}
-    assert len(result["assumptions"]) == 3
+    assert len(result["assumptions"]) == 5
 
 
-def test_forecast_marks_actions_on_invoices_that_need_checking(tools, ground_truth):
-    flagged = flagged_invoice_ids(ground_truth)
+def test_forecast_leaves_out_invoices_waiting_for_verification(tools, ready, owner, ground_truth):
+    scenario = ground_truth["cash_scenario"]["forecast"]
+    planted = ground_truth["invoices"]
+
+    result = data(tools.execute("forecast_cashflow", {"horizon_days": 30}))
+    pending = result["pending_verification"]
+    reasons = {i["id"]: i["reasons"] for i in pending["invoices"]}
+
+    assert sorted(reasons) == scenario["pending_verification"]
+    assert pending["invoices_total"] == scenario["pending_verification_total"]
+    assert reasons[planted["unverified_supplier"][0]["invoice_id"]] == [
+        "supplier_account_not_verified"
+    ]
+    assert reasons[planted["account_change_fraud"][0]["invoice_id"]] == [
+        "asks_for_a_different_bank_account"
+    ]
+    for pair in planted["duplicate_invoices"]:
+        assert pair["original"] not in reasons
+    # The figures if they all turn out valid are the forecast of every open invoice.
+    if_valid = pending["if_all_invoices_turn_out_valid"]
+    assert if_valid["lowest_date"] == scenario["expected"]["lowest_date"]
+    assert if_valid["first_day_below_zero"] == scenario["expected"]["first_shortfall_date"]
+    assert Decimal(if_valid["lowest_balance"]) < Decimal(result["lowest_balance"])
+    counted = {i["id"] for i in result["open_invoices_used"]["payables"]["items"]}
+    assert not counted & set(reasons)
+    assert counted | set(reasons) == {
+        i.id for i in ready.env.list_invoices(owner, "payable", status="open")
+    }
+
+
+def test_forecast_lists_each_counted_invoice_on_the_day_it_counts(tools, ground_truth):
+    planted = ground_truth["invoices"]
+    today = ground_truth["cash_scenario"]["forecast"]["start"]
+
+    result = data(tools.execute("forecast_cashflow", {"horizon_days": 30}))
+    used = result["open_invoices_used"]
+    payables = {i["id"]: i for i in used["payables"]["items"]}
+    receivables = {i["id"]: i for i in used["receivables"]["items"]}
+
+    # Overdue payables are counted today; the others on their due date.
+    for invoice_id in planted["overdue_payables"]:
+        if invoice_id in payables:
+            assert payables[invoice_id]["counted_on"] == today
+    for line in payables.values():
+        assert line["counted_on"] == max(line["due_date"], today)
+    assert Decimal(used["payables_total"]) == sum(Decimal(i["amount"]) for i in payables.values())
+    # Overdue receivables are not counted, and are listed as such.
+    assert not receivables.keys() & set(planted["overdue_receivables"])
+    assert sorted(i["id"] for i in used["overdue_receivables_not_counted"]) == sorted(
+        planted["overdue_receivables"]
+    )
+    assert all(line["counted_on"] == line["due_date"] for line in receivables.values())
+
+
+def test_forecast_actions_skip_invoices_waiting_for_verification(tools, ground_truth):
+    scenario = ground_truth["cash_scenario"]["forecast"]
+    (anomaly,) = ground_truth["invoices"]["amount_anomaly"]
 
     result = data(tools.execute("forecast_cashflow", {"horizon_days": 30}))
     actions = result["candidate_actions"]
@@ -397,10 +457,34 @@ def test_forecast_marks_actions_on_invoices_that_need_checking(tools, ground_tru
         "split_payment",
         "prioritise_payable",
     }
-    cautioned = {a["invoice_id"] for a in actions if "caution" in a}
-    assert cautioned
-    assert cautioned <= flagged
-    assert set(result["open_invoices_used"]["payables_that_need_checking"]) >= cautioned
+    assert not {a["invoice_id"] for a in actions} & set(scenario["pending_verification"])
+    # An unusual amount is still counted, with a caution on every action that names it.
+    assert result["open_invoices_used"]["payables_with_an_unusual_amount"] == [
+        anomaly["invoice_id"]
+    ]
+    for action in actions:
+        assert ("caution" in action) == (action["invoice_id"] == anomaly["invoice_id"])
+
+
+def test_forecast_lists_a_refund_the_bank_never_received_apart(tools, ground_truth):
+    refunds = [
+        item
+        for item in ground_truth["reconciliation"]["unmatched_books"]
+        if item["cause"] == "refund_not_received"
+    ]
+
+    result = data(tools.execute("forecast_cashflow", {"horizon_days": 30}))
+    pending = result["pending_verification"]
+
+    # Only the refund: sales that never reached the bank are part of the sales average.
+    assert [i["book_id"] for i in pending["money_in_not_received"]] == [
+        item["book_id"] for item in refunds
+    ]
+    assert Decimal(pending["money_in_not_received_total"]) > 0
+    # Not counted: the only money in the forecast relies on is sales and customer invoices.
+    assert [i["label"] for i in result["repeating_items_used"] if i["direction"] == "in"] == [
+        "sales"
+    ]
 
 
 # --- Actions go through the guard ------------------------------------------------------------

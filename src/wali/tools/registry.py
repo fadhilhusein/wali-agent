@@ -27,7 +27,7 @@ from wali.agent.dialogue import fallback_hint
 from wali.finance.forecast import detect_recurring, forecast
 from wali.finance.recommend import recommend
 from wali.finance.reconcile import ReconcileConfig, reconcile
-from wali.guard.policy import find_duplicate
+from wali.guard.policy import amount_above_usual, is_first_copy, verification_issues
 from wali.guard.service import GuardService, MandateRequest, mask_account
 from wali.models import (
     BankTransaction,
@@ -38,6 +38,7 @@ from wali.models import (
     NonNegativeAmount,
     PositiveAmount,
     Principal,
+    Supplier,
 )
 from wali.tools.base import AccessDenied, FinancialEnvironment, NotFound, ToolFailure
 
@@ -131,7 +132,8 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "name": "forecast_cashflow",
         "description": (
             "Project the cash balance day by day from today, using open invoices and repeating "
-            "costs and income. Returns the lowest point, any days below zero, and candidate "
+            "costs and income. Supplier invoices that still need verification are left out and "
+            "listed separately. Returns the lowest point, any days below zero, and candidate "
             "actions. The calculation is done for you; explain the result."
         ),
         "input_schema": _schema(
@@ -526,14 +528,31 @@ class ToolRegistry:
             ),
         }
 
-    def _invoice_view(self, invoice: Invoice, others: tuple[Invoice, ...]) -> dict[str, Any]:
+    def _suppliers_of(self, invoices: list[Invoice]) -> dict[str, Supplier | None]:
+        """The supplier of every open payable, or None when it is not on record."""
+        suppliers: dict[str, Supplier | None] = {}
+        for supplier_id in sorted(
+            {i.counterparty_id for i in invoices if i.kind == "payable" and i.status == "open"}
+        ):
+            try:
+                suppliers[supplier_id] = self._read(self._env.get_supplier, supplier_id)
+            except NotFound:
+                suppliers[supplier_id] = None
+        return suppliers
+
+    def _invoice_view(
+        self,
+        invoice: Invoice,
+        others: tuple[Invoice, ...],
+        suppliers: dict[str, Supplier | None],
+    ) -> dict[str, Any]:
         today = self._today()
-        flags = []
+        flags: list[str] = []
         if invoice.kind == "payable" and invoice.status == "open":
-            if find_duplicate(invoice, others) is not None:
-                flags.append("possible_duplicate")
-            if invoice.stated_account is not None:
-                flags.append("document_names_a_bank_account")
+            supplier = suppliers.get(invoice.counterparty_id)
+            flags += verification_issues(invoice, others, supplier)
+            if amount_above_usual(invoice, supplier):
+                flags.append("amount_above_usual")
         view = invoice.model_dump(mode="json", exclude={"stated_account", "document_text"})
         view["amount"] = format(invoice.amount, "f")
         view["days_overdue"] = (
@@ -556,7 +575,8 @@ class ToolRegistry:
         # due date, then the rest from the most recent. Oldest-first would fill the list with
         # paid invoices from months ago and hide the open ones.
         chosen.sort(key=_listing_order)
-        views = [self._invoice_view(i, tuple(everything)) for i in chosen]
+        suppliers = self._suppliers_of(chosen)
+        views = [self._invoice_view(i, tuple(everything), suppliers) for i in chosen]
         return {
             "today": self._today(),
             "invoices": _capped(
@@ -653,33 +673,97 @@ class ToolRegistry:
         balance = self._read(self._env.get_balance)
         payables: list[Invoice] = self._read(self._env.list_invoices, "payable")
         receivables: list[Invoice] = self._read(self._env.list_invoices, "receivable")
+        yesterday = today - dt.timedelta(days=1)
         history_start = today - dt.timedelta(days=RECURRING_LOOKBACK_DAYS)
-        books: list[BookEntry] = self._read(self._env.get_book_entries, history_start, today)
-        recurring = detect_recurring(
-            books, today - dt.timedelta(days=1), lookback_days=RECURRING_LOOKBACK_DAYS
+        margin = dt.timedelta(days=self._reconcile_config.date_window_days)
+        books: list[BookEntry] = self._read(
+            self._env.get_book_entries, history_start - margin, today
         )
+        recurring = detect_recurring(books, yesterday, lookback_days=RECURRING_LOOKBACK_DAYS)
         open_payables = [i for i in payables if i.status == "open"]
         open_receivables = [i for i in receivables if i.status == "open"]
+
+        # A supplier invoice in doubt is left out of the forecast until someone checks it, so
+        # the figures never rest on a bill that may be fraudulent or a copy. Of a group of
+        # possible duplicates, the first is still counted: one of them is really owed.
+        suppliers = self._suppliers_of(open_payables)
+        all_payables = tuple(payables)
+        counted: list[Invoice] = []
+        waiting: list[tuple[Invoice, list[str]]] = []
+        unusual: set[str] = set()
+        for invoice in open_payables:
+            supplier = suppliers[invoice.counterparty_id]
+            issues = [
+                issue
+                for issue in verification_issues(invoice, all_payables, supplier)
+                if issue != "possible_duplicate" or not is_first_copy(invoice, all_payables)
+            ]
+            if issues:
+                waiting.append((invoice, issues))
+                continue
+            counted.append(invoice)
+            if amount_above_usual(invoice, supplier):
+                unusual.add(invoice.id)
+
         result = forecast(
+            balance, counted, open_receivables, recurring, args.horizon_days, start=today
+        )
+        if_all_valid = forecast(
             balance, open_payables, open_receivables, recurring, args.horizon_days, start=today
         )
 
-        questionable: dict[str, str] = {}
-        for invoice in open_payables:
-            if find_duplicate(invoice, tuple(payables)) is not None:
-                questionable[invoice.id] = "possible duplicate"
-            elif invoice.stated_account is not None:
-                questionable[invoice.id] = "the document names a bank account"
         candidates = []
-        for item in recommend(result, open_payables, open_receivables):
+        for item in recommend(result, counted, open_receivables):
             line = item.model_dump(mode="json")
             line["amount"] = format(item.amount, "f")
             line["effect_on_lowest_balance"] = format(item.effect_on_lowest_balance, "f")
-            if item.invoice_id in questionable:
+            if item.invoice_id in unusual:
                 line["caution"] = (
-                    f"This invoice needs checking first ({questionable[item.invoice_id]})."
+                    "The amount is well above this supplier's usual invoice. Check it with the "
+                    "supplier before acting on it."
                 )
             candidates.append(line)
+
+        # Money in that the books expect but the bank never received, such as a refund or a
+        # returned overpayment, is not counted either: it is listed until it arrives. Repeating
+        # income such as sales is already in the forecast as an average, so it is not listed.
+        bank: list[BankTransaction] = self._read(
+            self._env.list_transactions, history_start - margin, today, limit=1000
+        )
+        repeating_in = {i.label for i in recurring if i.direction == "in"}
+        not_received = [
+            entry
+            for entry in reconcile(
+                bank, books, self._reconcile_config, period=(history_start, yesterday)
+            ).unmatched_books
+            if entry.direction == "in"
+            and entry.invoice_id is None
+            and entry.category not in repeating_in
+        ]
+
+        # The invoices behind the figures, each on the day it moves cash, so that the model
+        # never has to work out which ones count or when.
+        end = today + dt.timedelta(days=args.horizon_days)
+
+        def used(invoice: Invoice, day: dt.date) -> dict[str, Any]:
+            return {
+                "id": invoice.id,
+                "number": invoice.number,
+                "counterparty_name": invoice.counterparty_name,
+                "amount": format(invoice.amount, "f"),
+                "due_date": invoice.due_date,
+                "counted_on": day,
+            }
+
+        payables_used = sorted(
+            (used(i, max(i.due_date, today)) for i in counted if max(i.due_date, today) < end),
+            key=lambda line: (line["counted_on"], line["id"]),
+        )
+        receivables_used = sorted(
+            (used(i, i.due_date) for i in open_receivables if today <= i.due_date < end),
+            key=lambda line: (line["counted_on"], line["id"]),
+        )
+        overdue_receivables = [i for i in open_receivables if i.due_date < today]
 
         mandate = self._guard.active_mandate()
         buffer = mandate.min_cash_buffer.amount if mandate is not None else None
@@ -706,13 +790,75 @@ class ToolRegistry:
             ],
             "repeating_items_used": recurring,
             "open_invoices_used": {
-                "payables": len(open_payables),
-                "receivables": len(open_receivables),
-                "payables_that_need_checking": sorted(questionable),
+                "note": (
+                    "Every invoice in the figures, on the day it is counted. Use these dates; "
+                    "do not work out others."
+                ),
+                "payables": _capped(payables_used),
+                "payables_total": sum(
+                    (Decimal(line["amount"]) for line in payables_used), Decimal("0")
+                ),
+                "receivables": _capped(receivables_used),
+                "receivables_total": sum(
+                    (Decimal(line["amount"]) for line in receivables_used), Decimal("0")
+                ),
+                "overdue_receivables_not_counted": [
+                    {
+                        "id": i.id,
+                        "number": i.number,
+                        "counterparty_name": i.counterparty_name,
+                        "amount": format(i.amount, "f"),
+                        "due_date": i.due_date,
+                    }
+                    for i in overdue_receivables
+                ],
+                "payables_with_an_unusual_amount": sorted(unusual),
+            },
+            "pending_verification": {
+                "note": (
+                    "Supplier invoices, and money in that the books expect but the bank has "
+                    "not received, waiting for verification. None of it is in the figures "
+                    "above. Report it separately as waiting for verification."
+                ),
+                "invoices": [
+                    {
+                        "id": invoice.id,
+                        "number": invoice.number,
+                        "counterparty_name": invoice.counterparty_name,
+                        "amount": format(invoice.amount, "f"),
+                        "due_date": invoice.due_date,
+                        "reasons": issues,
+                    }
+                    for invoice, issues in waiting
+                ],
+                "invoices_total": sum((i.amount for i, _ in waiting), Decimal("0")),
+                # The forecast if every invoice above is valid after all.
+                "if_all_invoices_turn_out_valid": {
+                    "lowest_balance": if_all_valid.lowest_balance,
+                    "lowest_date": if_all_valid.lowest_date,
+                    "days_below_zero": len(if_all_valid.shortfall_days),
+                    "first_day_below_zero": (
+                        if_all_valid.shortfall_days[0] if if_all_valid.shortfall_days else None
+                    ),
+                },
+                "money_in_not_received": [
+                    {
+                        "book_id": entry.id,
+                        "date": entry.date,
+                        "amount": format(entry.amount, "f"),
+                        "category": entry.category,
+                        "description": entry.description,
+                    }
+                    for entry in not_received
+                ],
+                "money_in_not_received_total": sum((e.amount for e in not_received), Decimal("0")),
             },
             "assumptions": [
                 "Open supplier invoices are paid on their due date; overdue ones today.",
+                "Supplier invoices waiting for verification are left out until they are checked.",
                 "Customer invoices arrive on their due date; overdue ones are not counted.",
+                "One-off money in that the bank has not received, such as a refund, is left "
+                "out until it arrives.",
                 "Repeating items are averages taken from the last 90 days of the books.",
             ],
             "candidate_actions": candidates,

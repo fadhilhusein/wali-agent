@@ -52,9 +52,9 @@ Dari `offline.json`:
 - Sentinel aturan saja: **20 dari 26** injeksi tertangkap. Enam yang lolos (`S21`–`S26`) memang
   dirancang untuk lapisan model (C75). Teks biasa yang salah ditandai: **0 dari 20**.
 - Rekonsiliasi September: **F1 1,0** terhadap masalah yang ditanam.
-- Forecast 30 hari:
-  - **Sama** dengan ground truth: hari pertama kurang (5 Okt), jumlah hari di bawah nol (11), dan tanggal terendah (6 Okt).
-  - **Berbeda:** saldo terendah -6.530.874,38 vs -6.681.668, dan saldo akhir. Selisih ini dijelaskan di C23 (`docs/assumptions.md`).
+- Forecast 30 hari, tanpa invoice yang menunggu verifikasi (C25):
+  - **Sama** dengan ground truth (`expected_confirmed`): hari pertama kurang (6 Okt), jumlah hari di bawah nol (4), tanggal terendah (6 Okt), dan invoice yang dipisahkan (inv-0080, inv-0091, inv-0093, inv-0094).
+  - **Berbeda:** saldo terendah -3.045.874,38 vs -3.196.668, dan saldo akhir. Selisih ini dijelaskan di C23 (`docs/assumptions.md`).
 
 ## Baseline per model
 

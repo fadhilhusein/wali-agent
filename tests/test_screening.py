@@ -316,7 +316,7 @@ def test_the_planted_invoice_text_is_withheld_but_its_flags_remain(world, owner,
     listed = {i["id"]: i for i in data(outcome)["invoices"]["items"]}
     planted = listed[fraud["invoice_id"]]
     assert planted["document_text"] == WITHHELD_TEXT
-    assert "document_names_a_bank_account" in planted["flags"]
+    assert "asks_for_a_different_bank_account" in planted["flags"]
     assert fraud["stated_account"] not in outcome.content
     assert "pre-approved" not in outcome.content
     assert body(outcome)["screening"]["text_fields_withheld"] == 1

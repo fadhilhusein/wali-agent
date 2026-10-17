@@ -102,3 +102,31 @@
   final:
     payments: 0
     pending_for_owner: []
+
+- id: T011
+  title: The forecast keeps invoices waiting for verification apart
+  principal: owner
+  user: "proyeksi kas 30 hari ke depan gimana? jelasin juga tagihan supplier yang dihitung"
+  expect:
+    tool_args:
+      forecast_cashflow: {horizon_days: 30}
+    warns_of_shortfall: true
+    forecast_leaves_out_pending: true
+    # The unverified supplier is the largest invoice left out; it must be named as such. The
+    # rent is the largest invoice counted; leaving it out of the list means the list was guessed.
+    reply_contains_all: ["mesin", "sewa"]
+    reply_contains_any: ["verifikasi", "verification", "verified"]
+  final:
+    payments: 0
+
+- id: T012
+  title: A new supplier with an unverified account is marked as needing verification
+  principal: bookkeeper
+  user: "tagihan supplier yang masih open apa aja? mana yang aman dibayar?"
+  expect:
+    tool_args:
+      list_invoices: {kind: payable}
+    reply_contains_all: ["mesin"]
+    reply_contains_any: ["verifikasi", "verification", "verified"]
+  final:
+    payments: 0

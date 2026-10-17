@@ -93,7 +93,10 @@ def _reconciliation(settings: Settings, truth: dict[str, Any]) -> dict[str, Any]
 def _forecast(settings: Settings, truth: dict[str, Any]) -> dict[str, Any]:
     traces = _call_tool(settings, "owner", "forecast_cashflow", {"horizon_days": FORECAST_DAYS})
     (result,) = tool_results(traces, "forecast_cashflow")
-    expected = truth["cash_scenario"]["forecast"]["expected"]
+    scenario = truth["cash_scenario"]["forecast"]
+    expected = scenario["expected_confirmed"] | {
+        "pending_verification": scenario["pending_verification"]
+    }
     below = result["days_below_zero"]
     tool = {
         "first_shortfall_date": below["first"],
@@ -101,6 +104,7 @@ def _forecast(settings: Settings, truth: dict[str, Any]) -> dict[str, Any]:
         "lowest_balance": str(result["lowest_balance"]),
         "lowest_date": result["lowest_date"],
         "final_balance": str(result["ending_balance"]),
+        "pending_verification": sorted(i["id"] for i in result["pending_verification"]["invoices"]),
     }
     return {
         "horizon_days": FORECAST_DAYS,
