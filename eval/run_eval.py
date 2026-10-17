@@ -22,6 +22,7 @@ import time
 from typing import Any
 
 from eval.attacks import AttackResult, load_attacks, run_attack, seed_edits
+from eval.compare import against_baseline
 from eval.dialogues import DialogueResult, load_dialogues, run_dialogue
 from eval.harness import CountingLLM, fresh_world
 from eval.report import build_report, meets, run_metrics, write_reports
@@ -40,6 +41,14 @@ def _shown(text: str, full: bool) -> str:
     return text if full or len(text) <= MAX_SHOWN_CHARS else text[:MAX_SHOWN_CHARS] + " [...]"
 
 
+def show_calls(calls: list[dict[str, Any]]) -> None:
+    """The tool calls behind a failure, so a wrong answer can be told from a wrong question."""
+    for call in calls:
+        outcome = f"ERROR {call['error_code']}" if call["is_error"] else "ok"
+        arguments = json.dumps(call["arguments"], ensure_ascii=False)
+        print(f"      call: {call['name']} {arguments} -> {outcome}")
+
+
 def show_dialogue(result: DialogueResult, *, full: bool) -> None:
     print(f"\n=== {result.id} {'PASS' if result.passed else 'FAIL'}  {result.title} ===")
     for turn in result.turns:
@@ -51,6 +60,8 @@ def show_dialogue(result: DialogueResult, *, full: bool) -> None:
         )
         for problem in turn.problems:
             print(f"      FAIL: {problem}")
+        if turn.problems:
+            show_calls(turn.calls)
     for problem in result.problems:
         print(f"      FAIL (final state): {problem}")
 
@@ -66,6 +77,8 @@ def show_task(result: TaskResult, user: list[str], *, full: bool) -> None:
     )
     for problem in result.problems:
         print(f"      FAIL: {problem}")
+    if result.problems:
+        show_calls(result.calls)
 
 
 def show_attack(result: AttackResult, *, full: bool) -> None:
@@ -257,6 +270,8 @@ def main(argv: list[str] | None = None) -> int:
         stamp = started_at.strftime("%Y%m%dT%H%M%SZ")
         for path in write_reports(report, stamp):
             print(f"report: {path}")
+    print("\n--- against this model's baseline ---")
+    print("\n".join(against_baseline(report)[0]))
     through = report["metrics"].get("attack_success_count")
     return 1 if through else 0
 

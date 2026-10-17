@@ -81,6 +81,26 @@ class Dialogue(_Spec):
     expect: FinalExpect = Field(default_factory=FinalExpect)
 
 
+# How much of a tool result a report keeps. Enough to see whether a list came back empty.
+RESULT_CHARS_KEPT = 400
+
+
+def summarise_calls(traces) -> list[dict[str, Any]]:
+    """The tool calls of a turn for a report: the arguments the model chose, whether the call
+    failed, and the start of what came back. Without them a wrong answer cannot be told apart
+    from a wrong question."""
+    return [
+        {
+            "name": t.name,
+            "arguments": t.arguments,
+            "is_error": t.is_error,
+            "error_code": t.error_code,
+            "result": t.result[:RESULT_CHARS_KEPT],
+        }
+        for t in traces
+    ]
+
+
 @dataclass
 class TurnResult:
     user: str
@@ -90,6 +110,7 @@ class TurnResult:
     model_calls: int
     seconds: float
     problems: list[str] = field(default_factory=list)
+    calls: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -291,6 +312,7 @@ def run_dialogue(dialogue: Dialogue, world: EvalWorld) -> DialogueResult:
                 ran.model_calls,
                 ran.seconds,
                 problems,
+                summarise_calls(ran.result.reply.tool_calls),
             )
         )
     return DialogueResult(dialogue.id, dialogue.title, turns, check_final(dialogue.expect, world))
