@@ -14,9 +14,12 @@ from wali.guard.policy import (
     PaymentProposal,
     PaymentTerms,
     PolicyView,
+    amount_above_usual,
     check_authority,
     evaluate,
     find_duplicate,
+    is_first_copy,
+    verification_issues,
 )
 from wali.models import Invoice, Money, Principal, Supplier
 
@@ -609,3 +612,50 @@ def test_digest_ignores_how_the_amount_is_written():
 )
 def test_digest_changes_with_every_field(change):
     assert terms(**change).digest() != terms().digest()
+
+
+# --- Verification status ---------------------------------------------------------------------
+
+
+def test_an_ordinary_invoice_needs_no_verification():
+    assert verification_issues(invoice(), (), supplier()) == []
+
+
+def test_an_unverified_or_unknown_supplier_needs_verification():
+    assert verification_issues(invoice(), (), supplier(account_verified=False)) == [
+        "supplier_account_not_verified"
+    ]
+    assert verification_issues(invoice(), (), None) == ["supplier_account_not_verified"]
+
+
+def test_only_a_different_stated_account_needs_verification():
+    same = invoice(stated_account=f" {ACCOUNT} ")
+    other = invoice(stated_account="SIM-0000-000000")
+
+    assert verification_issues(same, (), supplier()) == []
+    assert verification_issues(other, (), supplier()) == ["asks_for_a_different_bank_account"]
+
+
+def test_both_copies_are_possible_duplicates_but_only_the_later_is_not_the_first():
+    first = invoice("inv-1", issue_date=dt.date(2026, 9, 25))
+    later = invoice("inv-2", number=first.number, issue_date=dt.date(2026, 9, 26))
+    others = (first, later)
+
+    assert verification_issues(first, others, supplier()) == ["possible_duplicate"]
+    assert verification_issues(later, others, supplier()) == ["possible_duplicate"]
+    assert is_first_copy(first, others)
+    assert not is_first_copy(later, others)
+
+
+def test_an_open_copy_of_a_paid_invoice_is_never_the_first():
+    paid = invoice("inv-1", status="paid", issue_date=dt.date(2026, 9, 30))
+    copy = invoice("inv-2", number=paid.number, issue_date=dt.date(2026, 9, 25))
+
+    assert not is_first_copy(copy, (paid, copy))
+
+
+def test_amount_above_usual_needs_a_history_to_compare_against():
+    assert amount_above_usual(invoice(amount=650_001), supplier())
+    assert not amount_above_usual(invoice(amount=650_000), supplier())
+    assert not amount_above_usual(invoice(amount=650_001), supplier(avg_invoice_amount=0))
+    assert not amount_above_usual(invoice(amount=650_001), None)

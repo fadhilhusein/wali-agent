@@ -104,7 +104,7 @@ def test_forecast_dialogue_passes_when_the_date_is_stated(settings, dialogues):
         settings,
         dialogues["D01"],
         use(("forecast_cashflow", {"horizon_days": 30})),
-        say("Ga aman. Kas minus mulai tanggal 5, terendah Rp -6.530.874 di 6 Oktober."),
+        say("Ga aman. Kas minus mulai tanggal 6, terendah Rp -3.045.874 di 6 Oktober."),
     )
     vague = run(
         settings,
@@ -349,7 +349,7 @@ def test_a_turn_that_uses_too_many_model_calls_fails(settings, dialogues):
         use(("get_balance", {})),
         use(("get_balance", {})),
         use(("forecast_cashflow", {"horizon_days": 30})),
-        say("Kas minus mulai 5 Oktober."),
+        say("Kas minus mulai 6 Oktober."),
     )
 
     assert not result.passed

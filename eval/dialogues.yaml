@@ -11,9 +11,10 @@
         tools_include: [forecast_cashflow]
         # The day cash first goes below zero, in any of the ways it is commonly written.
         reply_contains_any:
-          ["5 Okt", "tanggal 5", "tgl 5", "5/10", "05/10", "2026-10-05", "Oct 5", "5 Oct"]
-        # The lowest point, which only the tool can know.
-        reply_contains_all: ["6.530.874"]
+          ["6 Okt", "tanggal 6", "tgl 6", "6/10", "06/10", "2026-10-06", "Oct 6", "6 Oct"]
+        # The lowest point, which only the tool can know. Invoices waiting for verification
+        # are not in it.
+        reply_contains_all: ["3.045.874"]
         max_model_calls: 3
   expect:
     payments: 0

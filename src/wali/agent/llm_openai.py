@@ -14,6 +14,9 @@ What this backend does differently from the Anthropic one:
 - Tool schemas are sent without the ``strict`` flag, which many compatible endpoints reject.
   Arguments are validated by the registry in any case.
 - Provider-specific reasoning text is not stored or sent back.
+- A tool name that carries a leaked control token ("propose_payment<|channel|>commentary", seen
+  with gpt-oss) is read as the tool it starts with, but only when that is a tool the request
+  offered. Anything else stays as it is and the registry refuses it.
 """
 
 from __future__ import annotations
@@ -30,6 +33,15 @@ from wali.agent.llm import LLMError, LLMResponse, ToolCall
 RETRY_DELAYS_SECONDS = (0.5, 1.5)
 MAX_DETAIL_CHARS = 400
 UNPARSEABLE_ARGUMENTS = "unparseable_arguments"
+
+
+def _tool_name(name: str, offered: set[str]) -> str:
+    """The tool a model meant, when its name has a control token such as ``<|channel|>`` glued
+    on. It can only ever resolve to a tool that was offered in this request."""
+    if name in offered or "<|" not in name:
+        return name
+    head = name.split("<|", 1)[0].strip()
+    return head if head in offered else name
 
 
 def _block(block: Any, name: str, default: Any = None) -> Any:
@@ -242,6 +254,7 @@ class OpenAICompatibleLLM:
 
         text = (message.get("content") or "").strip() if isinstance(message, dict) else ""
         tool_calls: list[ToolCall] = []
+        offered = {tool["name"] for tool in tools}
         for index, call in enumerate(message.get("tool_calls") or []):
             function = call.get("function") or {}
             raw = function.get("arguments") or "{}"
@@ -255,7 +268,7 @@ class OpenAICompatibleLLM:
             tool_calls.append(
                 ToolCall(
                     id=call.get("id") or f"call_{index}",
-                    name=function.get("name") or "",
+                    name=_tool_name(function.get("name") or "", offered),
                     input=arguments,
                 )
             )

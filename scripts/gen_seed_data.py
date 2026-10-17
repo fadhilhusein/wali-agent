@@ -709,40 +709,61 @@ def balances(w: World) -> tuple[int, int]:
     return opening, opening + running
 
 
-def cash_scenario(w: World, closing: int) -> dict:
+def pending_verification(flagged: dict) -> set[str]:
+    """Open invoices a forecast must leave out until they are checked: the later copy of each
+    duplicate, the changed account, and the unverified supplier. An unusual amount is still
+    counted."""
+    pending = {copy.id for _, copy, _ in flagged["duplicate_invoices"] if copy.status == "open"}
+    for key in ("account_change_fraud", "unverified_supplier"):
+        pending |= {i.id for i in flagged[key] if i.status == "open"}
+    return pending
+
+
+def cash_scenario(w: World, closing: int, pending: set[str]) -> dict:
     """The planted cash squeeze: what a plain forecast from the day after as-of must show.
 
     Computed here with a simple loop of its own, on purpose independent of ``wali.finance``:
     open payables leave on their due date (overdue ones on the first day), open receivables
     arrive on their due date (overdue ones are not counted), average daily sales arrive every
     day, and payroll leaves on payday. A shortfall day is a day that ends below zero.
+
+    ``expected`` counts every open payable. ``expected_confirmed`` leaves out the ``pending``
+    ones, the planted invoices that must wait for verification.
     """
     start = w.as_of + ONE_DAY
     sales = sum(p.bank.amount for p in w.pairs if p.kind in ("gateway", "cash"))
     daily_sales = sales // w.days
     payroll_total = sum(salary for _, salary in EMPLOYEES)
 
-    flows: dict[dt.date, int] = {}
-    for invoice in w.invoices:
-        if invoice.status != "open":
-            continue
-        if invoice.kind == "payable":
-            day = max(invoice.due_date, start)
-            flows[day] = flows.get(day, 0) - invoice.amount
-        elif invoice.due_date >= start:
-            flows[invoice.due_date] = flows.get(invoice.due_date, 0) + invoice.amount
+    def project(skip: set[str]) -> dict:
+        flows: dict[dt.date, int] = {}
+        for invoice in w.invoices:
+            if invoice.status != "open" or invoice.id in skip:
+                continue
+            if invoice.kind == "payable":
+                day = max(invoice.due_date, start)
+                flows[day] = flows.get(day, 0) - invoice.amount
+            elif invoice.due_date >= start:
+                flows[invoice.due_date] = flows.get(invoice.due_date, 0) + invoice.amount
 
-    balance = closing
-    series = []
-    for offset in range(FORECAST_HORIZON_DAYS):
-        day = start + dt.timedelta(days=offset)
-        balance += flows.get(day, 0) + daily_sales
-        if day.day == min(PAYROLL_DAY, month_end(day.year, day.month).day):
-            balance -= payroll_total
-        series.append((day, balance))
+        balance = closing
+        series = []
+        for offset in range(FORECAST_HORIZON_DAYS):
+            day = start + dt.timedelta(days=offset)
+            balance += flows.get(day, 0) + daily_sales
+            if day.day == min(PAYROLL_DAY, month_end(day.year, day.month).day):
+                balance -= payroll_total
+            series.append((day, balance))
 
-    lowest_date, lowest_balance = min(series, key=lambda item: (item[1], item[0]))
-    shortfall = [day for day, value in series if value < 0]
+        lowest_date, lowest_balance = min(series, key=lambda item: (item[1], item[0]))
+        shortfall = [day for day, value in series if value < 0]
+        return {
+            "lowest_balance": str(lowest_balance),
+            "lowest_date": lowest_date.isoformat(),
+            "first_shortfall_date": shortfall[0].isoformat() if shortfall else None,
+            "shortfall_day_count": len(shortfall),
+            "final_balance": str(series[-1][1]),
+        }
 
     def open_total(kind: str) -> int:
         return sum(i.amount for i in w.invoices if i.kind == kind and i.status == "open")
@@ -769,13 +790,10 @@ def cash_scenario(w: World, closing: int) -> dict:
                     "amount": str(payroll_total),
                 },
             ],
-            "expected": {
-                "lowest_balance": str(lowest_balance),
-                "lowest_date": lowest_date.isoformat(),
-                "first_shortfall_date": shortfall[0].isoformat() if shortfall else None,
-                "shortfall_day_count": len(shortfall),
-                "final_balance": str(series[-1][1]),
-            },
+            "expected": project(set()),
+            "expected_confirmed": project(pending),
+            "pending_verification": sorted(pending),
+            "pending_verification_total": str(sum(i.amount for i in w.invoices if i.id in pending)),
         },
     }
 
@@ -943,7 +961,7 @@ def generate(seed: int, as_of: dt.date, days: int) -> tuple[dict[str, list[dict]
                 i.id for i in open_invoices("receivable") if i.due_date < w.as_of
             ],
         },
-        "cash_scenario": cash_scenario(w, closing),
+        "cash_scenario": cash_scenario(w, closing, pending_verification(flagged)),
     }
     return tables, ground_truth
 

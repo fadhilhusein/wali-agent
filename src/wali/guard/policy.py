@@ -218,6 +218,48 @@ def find_duplicate(invoice: Invoice, others: tuple[Invoice, ...]) -> Invoice | N
     return None
 
 
+VerificationIssue = Literal[
+    "possible_duplicate", "supplier_account_not_verified", "asks_for_a_different_bank_account"
+]
+
+
+def verification_issues(
+    invoice: Invoice, others: tuple[Invoice, ...], supplier: Supplier | None
+) -> list[VerificationIssue]:
+    """Why an open supplier invoice cannot be relied on until someone checks it.
+
+    The same doubts that rules 5 and 6 refuse a payment for: a possible duplicate, a supplier
+    whose registered account is not verified (or no supplier on record), and a document that
+    asks for an account other than the registered one. Empty when nothing is in doubt.
+    """
+    issues: list[VerificationIssue] = []
+    if find_duplicate(invoice, others) is not None:
+        issues.append("possible_duplicate")
+    if supplier is None or not supplier.account_verified:
+        issues.append("supplier_account_not_verified")
+    stated = invoice.stated_account
+    if stated is not None and (supplier is None or stated.strip() != supplier.verified_account):
+        issues.append("asks_for_a_different_bank_account")
+    return issues
+
+
+def is_first_copy(invoice: Invoice, others: tuple[Invoice, ...]) -> bool:
+    """True when no paid or earlier invoice is a duplicate of this one. Of a group of possible
+    duplicates, at most one bill is really owed, and it is taken to be the first."""
+    key = (invoice.issue_date, invoice.id)
+    earlier = tuple(o for o in others if o.status == "paid" or (o.issue_date, o.id) < key)
+    return find_duplicate(invoice, earlier) is None
+
+
+def amount_above_usual(invoice: Invoice, supplier: Supplier | None) -> bool:
+    """Rule 9: more than 30 percent above the supplier's average invoice."""
+    return (
+        supplier is not None
+        and supplier.avg_invoice_amount > 0
+        and invoice.amount > supplier.avg_invoice_amount * ANOMALY_RATIO
+    )
+
+
 def _check_authority(
     proposal: PaymentProposal,
     mandate: Mandate | None,
@@ -338,7 +380,7 @@ def _evaluate(
                 message="There is no payment history for this supplier to compare against.",
             )
         )
-    elif amount > average * ANOMALY_RATIO:
+    elif amount_above_usual(invoice, supplier):
         warnings.append(
             RiskWarning(
                 code="AMOUNT_ABOVE_SUPPLIER_AVERAGE",

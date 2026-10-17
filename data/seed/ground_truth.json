@@ -15,7 +15,21 @@
         "lowest_date": "2026-10-06",
         "shortfall_day_count": 11
       },
+      "expected_confirmed": {
+        "final_balance": "15672660",
+        "first_shortfall_date": "2026-10-06",
+        "lowest_balance": "-3196668",
+        "lowest_date": "2026-10-06",
+        "shortfall_day_count": 4
+      },
       "horizon_days": 30,
+      "pending_verification": [
+        "inv-0080",
+        "inv-0091",
+        "inv-0093",
+        "inv-0094"
+      ],
+      "pending_verification_total": "9985000",
       "recurring": [
         {
           "amount": "1331722",

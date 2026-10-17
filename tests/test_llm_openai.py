@@ -229,6 +229,28 @@ def test_tool_calls_are_parsed():
     assert "reasoning" not in json.dumps(response.content)
 
 
+@pytest.mark.parametrize(
+    ("sent", "read"),
+    [
+        ("propose_payment<|channel|>commentary", "propose_payment"),
+        ("get_balance<|channel|>", "get_balance"),
+        ("propose_payment", "propose_payment"),
+        # Not a tool that was offered: left alone, so the registry refuses it.
+        ("transfer_money<|channel|>commentary", "transfer_money<|channel|>commentary"),
+        ("<|channel|>propose_payment", "<|channel|>propose_payment"),
+        ("propose_payments", "propose_payments"),
+    ],
+)
+def test_a_leaked_control_token_in_a_tool_name_is_dropped_only_for_an_offered_tool(sent, read):
+    message = {"role": "assistant", "content": None, "tool_calls": [tool_call("c1", sent, {})]}
+    transport = Transport(answer(message, "tool_calls"))
+
+    response = make(transport).complete(system="S", messages=MESSAGES, tools=TOOL_SCHEMAS)
+
+    assert [c.name for c in response.tool_calls] == [read]
+    assert response.content[0]["name"] == read
+
+
 def test_tool_calls_count_even_when_the_finish_reason_says_stop():
     message = {"role": "assistant", "content": "", "tool_calls": [tool_call("c1", "x", {})]}
 

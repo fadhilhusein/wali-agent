@@ -50,7 +50,7 @@ def test_reconcile_forecast_and_pay_with_owner_confirmation(
         use(("reconcile_period", SEPTEMBER)),
         say("Ada 10 selisih di September."),
         use(("forecast_cashflow", {"horizon_days": 30})),
-        say("Kas turun di bawah nol mulai 5 Oktober."),
+        say("Kas turun di bawah nol mulai 6 Oktober."),
         use(("list_invoices", {"kind": "payable", "status": "open", "due_before": None})),
         use(("propose_payment", {"invoice_id": large.id})),
         say("Belum dibayar. Menunggu konfirmasi pemilik."),
@@ -62,7 +62,7 @@ def test_reconcile_forecast_and_pay_with_owner_confirmation(
     assert sum(tool_results(llm.requests[1])[0]["untrusted_data"]["counts"].values()) == 10
 
     forecast = app.chat(owner, "kas aman ga sampe akhir bulan?")
-    expected = ground_truth["cash_scenario"]["forecast"]["expected"]
+    expected = ground_truth["cash_scenario"]["forecast"]["expected_confirmed"]
     forecast_data = tool_results(llm.requests[3])[0]["untrusted_data"]
     assert forecast_data["days_below_zero"]["first"] == expected["first_shortfall_date"]
     assert forecast.new_confirmations == ()
