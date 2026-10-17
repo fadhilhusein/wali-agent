@@ -15,3 +15,10 @@ Before UI work, resolve the antislop usage mode in this order: an explicit sessi
 global preference, then ask. Read `DESIGN.md` as the product's visual direction. Run the core
 Delivery Gate before shipping UI work.
 <!-- antislop:end -->
+
+## Aturan audit
+
+- DILARANG menambah fitur baru. Hanya: tes, perbaikan bug, perbaikan keamanan.
+- Jika perbaikan mengubah perilaku yang tampak pengguna, berhenti dan tanya dulu.
+- Satu perbaikan = satu commit kecil beserta tes.
+- Hasil tiap tahap ditulis ke docs/audit/.
