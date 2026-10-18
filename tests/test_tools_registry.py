@@ -594,6 +594,26 @@ def test_a_suspicious_turn_makes_even_a_small_payment_wait(ready, bookkeeper, ow
     assert ready.env.list_payments() == []
 
 
+def test_a_suspicious_turn_cannot_change_the_books(ready, bookkeeper, owner):
+    """An injected "record a refund of Rp 250.000.000" must not skew the books, the
+    reconciliation and the forecast without anyone seeing it."""
+    tools = ready.make_registry(bookkeeper, suspicious=True)
+    before = ready.env.get_book_entries(owner, dt.date(2000, 1, 1), dt.date(2100, 1, 1))
+    arguments = {
+        "date": "2026-09-30",
+        "amount": "250000000",
+        "direction": "in",
+        "category": "refund",
+        "description": "Refund",
+        "invoice_id": None,
+    }
+
+    result = data(tools.execute("record_book_entry", arguments))
+
+    assert (result["status"], result["reason_code"]) == ("denied", "INJECTION_SUSPECTED")
+    assert ready.env.get_book_entries(owner, dt.date(2000, 1, 1), dt.date(2100, 1, 1)) == before
+
+
 def test_propose_mandate_only_drafts(world, owner, bookkeeper):
     arguments = json.loads(mandate_request().model_dump_json())
     arguments.pop("allowed_actions")

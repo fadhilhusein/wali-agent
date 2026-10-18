@@ -1454,10 +1454,18 @@ class GuardService:
     # --- Books ---------------------------------------------------------------------------
 
     def record_book_entry(
-        self, principal: Principal, entry: NewBookEntry, *, session_id: str = ""
+        self,
+        principal: Principal,
+        entry: NewBookEntry,
+        *,
+        session_id: str = "",
+        suspicious: bool = False,
     ) -> BookEntryDecision:
         """Add a books entry on someone's behalf. Needs a valid mandate that allows it and a
-        role that keeps the books. This never moves money."""
+        role that keeps the books. This never moves money.
+
+        ``suspicious`` marks a turn in which text looked like an instruction or could not be
+        screened. Nobody confirms a books entry, so in such a turn it is refused."""
         with self._lock:
             try:
                 now = self._now()
@@ -1486,6 +1494,13 @@ class GuardService:
                 ):
                     return denied(
                         "ROLE_NOT_ALLOWED", "Your role is not allowed to record book entries."
+                    )
+                if suspicious:
+                    return denied(
+                        "INJECTION_SUSPECTED",
+                        "Text in this conversation looked like an instruction or could not be "
+                        "checked, so I will not change the books now. Please add the entry by "
+                        "hand, or ask again in a new message.",
                     )
                 try:
                     # Sent once: an entry that did reach the books would be written twice.
