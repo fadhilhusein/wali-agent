@@ -1,156 +1,144 @@
 # Audit tahap 4: verifikasi akhir
 
-Branch `checkreview` (HEAD `0b3b4f5`). Tahap ini hanya memverifikasi. Tidak ada kode, tes, atau data yang diubah.
-Satu-satunya file baru adalah laporan ini.
+Branch `checkreview`. Diverifikasi ulang di HEAD `ffaf4f4`, setelah perbaikan putaran kedua.
+Hasil putaran pertama (NO-GO di `0b3b4f5`) ada di riwayat git file ini (`5988cee`) dan diringkas di bagian akhir.
 
-## Keputusan: **NO-GO**
+## Keputusan
 
-Branch ini belum boleh dirilis atau dipakai di luar demo. Alasannya:
+| Pemakaian | Keputusan |
+|---|---|
+| **Demo lokal** (satu komputer, host loopback bawaan) | **GO** |
+| **Di luar demo** (jaringan, `--host 0.0.0.0`, pengguna sungguhan, uang sungguhan) | **NO-GO** |
 
-1. **11 dari 13 item Critical/Required belum dikerjakan** (#3 sampai #13). Semuanya masih menunggu keputusan
-   pemilik karena tampak pengguna. Termasuk di dalamnya celah yang bisa membuat batas mingguan terlewati (#3, #4, #5)
-   dan injeksi yang lolos penyaring (#7, #8).
-2. **Perbaikan #1 membawa regresi baru.** Akses FastAPI lewat `[::1]` sekarang ditolak 400 (lihat R1).
-3. **Ada perubahan perilaku yang belum disetujui.** Akses lewat IP LAN sekarang ditolak (lihat R2). `03-fixes.md`
-   sendiri menulis "belum diputuskan apakah itu diterima".
-4. **Suite Python tidak hijau.** 2 tes gagal (F1). Kegagalan ini sudah ada di `main`, tetapi job `pytest` di CI
-   tetap merah.
+Alasan GO untuk demo lokal:
 
-Dua perbaikan yang sudah ada (#1, #2) benar arahnya dan tidak memperburuk keamanan dibanding `main`. Kalau R1 sudah
-diperbaiki dan R2 sudah diputuskan, keduanya aman di-merge sebagai langkah parsial. Merge itu **bukan** go untuk rilis.
+- 12 dari 13 item Critical/Required di `02-review.md` sudah diperbaiki dan dibuktikan dengan tes. Masing-masing
+  ada di commit sendiri: tes ditulis lebih dulu, dipastikan gagal, lalu lulus setelah perbaikan.
+- Seluruh pemeriksaan hijau: pytest 1487/1487, tes unit frontend 12/12, `tsc`, eslint, `next build`,
+  `npm audit`, dan `pip-audit`.
+- Perubahan perilaku yang tampak pengguna sudah disetujui pemilik sebelum dikerjakan.
+- Tinjauan atas diff baru menemukan satu celah. Celah itu sudah diperbaiki di `ffaf4f4`.
+
+Alasan NO-GO di luar demo: **#13, web tanpa login**. Atas keputusan pemilik, fitur login tidak dibuat (aturan
+audit melarang fitur baru). Siapa pun yang bisa menjangkau port web bisa bertindak sebagai pemilik. Risiko ini
+bisa diterima hanya selama aplikasi berjalan di loopback. Ditambah risiko sisa R-A dan R-B di bawah, aplikasi
+belum siap untuk pengguna atau uang sungguhan.
 
 ## Dasar pembanding
 
-- Tag `audit-baseline` **tidak ada**, baik di lokal maupun di `origin` (hanya ada `v1.0.0`). Sebagai baseline dipakai
-  merge-base `checkreview` dan `main`, yaitu `38d29ea`.
-- `main` tidak bergerak sejak branch dibuat (`git log checkreview..main` kosong). Jadi pembandingan dengan baseline
-  dan dengan `main` menghasilkan diff yang sama: 10 commit, 18 file, +1850/-16.
-- Kalau `audit-baseline` memang dimaksudkan untuk commit lain (misalnya `9e8dcb4`, commit aturan audit), laporan ini
-  perlu dicek ulang terhadap commit tersebut.
+- Tag `audit-baseline` **tidak ada** di lokal maupun di `origin`. Sebagai baseline dipakai merge-base dengan `main`,
+  yaitu `38d29ea`. `main` tidak bergerak, jadi diff terhadap baseline sama dengan diff terhadap `main`:
+  27 commit, 40 file, +2776/-104.
 
-## (1) Status item Critical dan Required dari `02-review.md`
+## (1) Status item Critical dan Required
 
-| # | Severity | Status | Bukti |
+| # | Status | Commit | Bukti (tes yang gagal sebelum dan lulus sesudah) |
 |---|---|---|---|
-| 1 | Critical | **Teratasi, dengan regresi** | `5e943e7`. Host `evil.example` ditolak (GET 400, POST 403), dan tidak ada pembayaran yang tercipta. Ini dibuktikan oleh `test_a_website_that_rebinds_its_name_to_this_computer_is_refused` dan 6 tes `local-request.test.ts`. Di proxy, GET sekarang juga dicek. Regresinya ada di R1. |
-| 2 | Required | **Teratasi** | `775ac0f`. `next.config.ts` mengirim `frame-ancestors 'none'`, `X-Frame-Options: DENY`, dan `nosniff` untuk `/:path*`. Dibuktikan oleh `next-config.test.ts` (2 tes). Header hanya diuji dari objek konfigurasi, belum lewat `next start` (lihat R6). |
-| 3 | Required | **Belum** | Menunggu keputusan pemilik. |
-| 4 | Required | **Belum** | Menunggu keputusan. Perilaku lama masih dikunci oleh `test_a_failure_writing_the_guards_own_record_is_noted_but_the_payment_stands`. |
-| 5 | Required | **Belum** | Menunggu keputusan. |
-| 6 | Required | **Belum** | Menunggu keputusan. |
-| 7 | Required | **Belum** | Menunggu keputusan. |
-| 8 | Required | **Belum** | Menunggu keputusan. |
-| 9 | Required | **Belum** | Menunggu keputusan. |
-| 10 | Required | **Belum** | Menunggu keputusan. |
-| 11 | Required | **Belum** | Menunggu keputusan. |
-| 12 | Required | **Belum** | Menunggu keputusan. |
-| 13 | Required (risiko diterima) | **Belum** | Risiko diterima untuk demo. Tetap jadi penghalang untuk pemakaian di luar demo. |
+| 1 | **Selesai** | `5e943e7`, `e38bfd6` | `test_a_website_that_rebinds_its_name_to_this_computer_is_refused`, `test_every_local_host_name_reaches_the_api` (termasuk `[::1]`), `local-request.test.ts`. Di server Next sungguhan, `Host: evil.example` ditolak 403. |
+| 2 | **Selesai** | `775ac0f` | `next-config.test.ts`. Dicek juga lewat `next start`: `/approvals` mengirim `frame-ancestors 'none'`, `X-Frame-Options: DENY`, dan `nosniff`. |
+| 3 | **Selesai** | `665041f` | `test_a_payment_that_gets_no_answer_is_not_sent_twice`, `..._whose_answer_is_lost_is_reported_as_possibly_paid`, `..._whose_outcome_cannot_be_checked_is_reported_as_uncertain`, serta dua tes entri buku yang tidak dikirim dua kali. |
+| 4 | **Selesai** | `fab1ef8`, `ffaf4f4` | `test_no_further_payment_until_an_unwritten_payment_is_recorded`, `test_a_record_that_was_written_after_all_does_not_block_payments`. |
+| 5 | **Selesai (rantai audit)** | `994bc3f` | `test_two_logs_on_one_file_keep_a_single_chain`, `test_processes_writing_at_the_same_time_keep_a_single_chain` (3 proses × 400 entri, stabil dalam 5 kali jalan), `test_a_damaged_audit_log_stops_start_up_with_a_plain_message`. Batas mingguan lintas proses masih terbuka (R-B). |
+| 6 | **Selesai** | `bcc0d42` | `test_a_correction_that_names_two_payments_keeps_both`. |
+| 7 | **Selesai** | `254670c` | `test_text_the_model_never_saw_is_unchecked_not_clean`, `test_the_part_of_a_long_text_past_the_cut_is_unchecked`. |
+| 8 | **Selesai** | `fb2f825` | `test_a_suspicious_turn_cannot_change_the_books`. |
+| 9 | **Selesai** | `283fa83` | `test_a_confirmation_that_meets_an_outage_can_be_tried_again` (dua titik gangguan), `test_a_confirmation_asked_again_leaves_only_the_new_request`. |
+| 10 | **Selesai** | `d8e706a` | `test_cli_confirm_number_means_the_item_that_was_shown`. |
+| 11 | **Selesai** | `9330488` | `decision-tone.test.ts` (3 tes). |
+| 12 | **Selesai** | `2ae8516` | `test_every_early_ending_after_an_action_says_the_action_may_have_happened` (refusal, terpotong, kosong, batas langkah). |
+| 13 | **Tidak dikerjakan (keputusan pemilik)** | - | Login adalah fitur baru. Risiko diterima hanya untuk demo lokal. |
+
+Temuan lain yang ikut diperbaiki: **F1** (`5740930`, baseline offline sekarang 25 serangan dan tes menghitung dari
+`attacks.yaml`), **#30/R2** (`c138ec2`, IP LAN dihapus dari `allowedDevOrigins`), dan **F8** (`next-env.d.ts`
+tidak lagi termodifikasi).
 
 ## (2) Isi diff: hanya tes dan perbaikan?
 
-**Ya, tidak ada fitur baru.** Rinciannya:
+**Ya.** Tidak ada fitur baru. Yang ada di luar tes:
 
-- **Tes tahap 1** (`54da59d`, `3903ec4`, `412866c`, `2a6ea2f`): hanya menambah file di `tests/`. Tidak ada kode sumber
-  yang disentuh, dan tidak ada `skip` atau `xfail` baru.
-- **Perbaikan #1** (`5e943e7`): `web/app.py`, `route.ts`, dan modul baru `lib/local-request.ts`, beserta tesnya.
-  Perubahan `tsconfig.json` (`allowImportingTsExtensions`) dan skrip `test:unit` di `package.json` hanya untuk
-  menjalankan tes. Tes lama di `test_web.py` dan `test_interfaces_gaps.py` diubah dari `Origin: http://testserver`
-  ke host lokal. Ini wajar karena `testserver` memang bukan host lokal.
-- **Perbaikan #2** (`775ac0f`): `next.config.ts` beserta tesnya.
-- **Dokumen**: `AGENTS.md` (aturan audit), `CLAUDE.md`, dan `docs/audit/01` sampai `03`.
-- Tiap perbaikan berada di satu commit kecil beserta tesnya, sesuai aturan.
+- Perbaikan pada `guard/service.py`, `guard/audit.py`, `guard/confirm.py`, `guard/sentinel.py`, `guard/policy.py`,
+  `tools/registry.py`, `agent/loop.py`, `app.py`, `interfaces/cli.py`, `interfaces/web/app.py`, dan di frontend
+  `route.ts`, `next.config.ts`, `workspace-provider.tsx`, serta modul kecil `lib/local-request.ts` dan
+  `lib/decision-tone.ts`.
+- Kode baru yang hanya melayani perbaikan: kode alasan `RECORDS_OUT_OF_SYNC` (#4) dan `OUTCOME_UNCERTAIN` (#3),
+  kategori sentinel `not_screened` (#7), `ConfirmationStore.check` dan `GuardService.token_is_live` (#9).
+  Semuanya dipakai hanya oleh perbaikan masing-masing.
+- Pengaturan tes: skrip `test:unit` dan `allowImportingTsExtensions`.
+- `docs/baseline/offline.json` ditulis ulang. Yang berubah hanya lima serangan baru, A021 sampai A025.
+- Satu commit hanya format Prettier (`2fc3bb9`).
 
-**Ada perubahan perilaku yang belum disetujui:**
+**Perubahan perilaku yang tampak pengguna. Semuanya disetujui pemilik sebelum dikerjakan:**
 
-- **R2, akses lewat nama host selain loopback ditolak.** Ini berlaku di FastAPI maupun di proxy Next. Siapa pun yang
-  membuka frontend lewat `http://192.168.0.13:3000` (IP yang tercantum di `allowedDevOrigins`) sekarang mendapat 403
-  dari setiap panggilan `/api/wali/*`. `03-fixes.md` mencatat hal ini tetapi belum ada keputusan. Menurut `AGENTS.md`,
-  perubahan seperti ini harus ditanyakan dulu.
-- **R1, `[::1]` ditolak.** Ini bug, bukan perubahan yang disengaja. `03-fixes.md` menyatakan `[::1]` tidak berubah,
-  padahal kenyataannya berubah.
+| # | Sebelum | Sesudah |
+|---|---|---|
+| 1 | Host apa pun diterima | Hanya `127.0.0.1`, `localhost`, `[::1]`, dan nilai `--host`. IP LAN ditolak (disetujui sebagai R2). |
+| 3 | Pembayaran diulang sekali saat gagal | Tidak diulang. Pesan dibedakan: "invoice still open, nothing was paid", "shows as paid, do not pay it again", atau "not certain". |
+| 4 | Pembayaran yang tak tercatat diabaikan | Pembayaran berikutnya ditolak (`RECORDS_OUT_OF_SYNC`) sampai catatannya tertulis. |
+| 5 | Log rusak memunculkan traceback | Pesan `SetupError` yang jelas. |
+| 6 | Koreksi berisi dua pembayaran hanya menyisakan satu | Keduanya tetap ada. |
+| 7 | Teks yang tak sempat disaring dianggap bersih | Dianggap belum disaring, sehingga pembayaran di giliran itu butuh pemilik. |
+| 8 | Entri buku selalu jalan | Ditolak di giliran mencurigakan. |
+| 9 | Permintaan hilang setelah "coba lagi" | Permintaan tetap menunggu dan bisa dikonfirmasi ulang. |
+| 10 | `/confirm n` memakai daftar terkini | Memakai daftar yang terakhir ditampilkan. Kalau item sudah hilang, muncul pesan "no longer waiting". |
+| 11 | Notifikasi selalu hijau | Merah untuk `denied`, `failed`, atau `needs_confirmation` saat konfirmasi. |
+| 12 | Catatan "mungkin sudah dijalankan" hanya saat model tidak bisa dihubungi | Juga saat model menolak, jawaban terpotong, jawaban kosong, atau batas langkah tercapai. |
 
 ## (3) Hasil tes
 
-Dijalankan di HEAD `0b3b4f5`, dengan `frontend/next-env.d.ts` termodifikasi (F8, tidak berpengaruh ke tes).
+Di HEAD `ffaf4f4`:
 
-| Pemeriksaan | Hasil | Di `main` (`38d29ea`) |
-|---|---|---|
-| `uv run pytest -q` | **1459 lulus, 2 gagal** | 1280 lulus, 2 gagal (dua tes yang sama) |
-| `ruff check` / `ruff format --check` | bersih | - |
-| `npm run test:unit` (Node 22.23) | 8 lulus, 0 gagal | belum ada |
-| `npx eslint app/api lib next.config.ts` | bersih | - |
-| `npx tsc --noEmit` | 3 error `lucide-react` tidak ditemukan | sama (paket tercantum di `package.json` tetapi tidak terpasang di `node_modules` lokal) |
-| `npm audit --omit=dev` | 0 kerentanan | - |
-| `uvx pip-audit` (90 dependensi produksi dari `uv export --frozen --no-dev`) | **tidak ada kerentanan yang diketahui** | - |
+| Pemeriksaan | Hasil |
+|---|---|
+| `uv run pytest -q` | **1487 lulus, 0 gagal** (di `main`: 1280 lulus, 2 gagal) |
+| `ruff check .` / `ruff format --check .` | bersih |
+| `npm run test:unit` | 12 lulus, 0 gagal |
+| `npx tsc --noEmit` (setelah `npm ci`) | bersih (3 error `lucide-react` sebelumnya hanya karena `node_modules` lokal tidak lengkap) |
+| `npm run lint` | bersih |
+| `npx next build` | berhasil, 6 rute |
+| `next start`, lalu `curl` | header anti-framing terkirim. Proxy menolak Host `evil.example` dan IP LAN (403). |
+| `npm audit --omit=dev` | 0 kerentanan |
+| `uvx pip-audit` (dependensi produksi) | tidak ada kerentanan yang diketahui |
 
-Kedua kegagalan (`test_eval_offline.py::test_the_stored_offline_baseline_is_up_to_date` dan
-`test_what_plain_code_guarantees_holds_without_any_model`) adalah F1: `attacks.yaml` sudah berisi 25 serangan,
-tetapi baseline dan tes masih menulis 20. Hasilnya sendiri **25 dari 25 tertahan**, jadi tidak ada regresi
-keamanan. Meski begitu, kriteria "seluruh tes lulus" **tidak terpenuhi**.
-
-Yang tidak dijalankan: skrip Playwright (`test:ui`, `test:landing`, dan seterusnya) dan `next build`, karena
-butuh browser serta `node_modules` yang lengkap. Job CI juga tidak menjalankan `test:unit`, jadi tes frontend
-baru belum dijaga CI (R5).
+Yang **tidak** dijalankan: skrip Playwright (`test:ui`, `test:landing`, `test:workflow-demo`) karena butuh browser,
+dan evaluasi dengan model sungguhan karena butuh kunci API.
 
 ## (4) Celah baru
 
-Kode baru dicoba langsung dengan `TestClient` terhadap `create_web_app`, memakai file tes sementara yang
-sudah dihapus lagi:
+Diff putaran kedua ditinjau ulang dengan fokus pada jalur uang, token, dan kunci file:
 
-| Percobaan | Hasil |
-|---|---|
-| `GET /api/info` dengan `Host: [::1]:8000` | **400** (R1) |
-| `GET` dengan `Host: localhost.evil.example` | 400 |
-| `POST` dengan `Origin: http://localhost:1234` (port lain) | 200 (R3) |
-| `POST` dengan `Origin: https://127.0.0.1` (skema lain) | 200 (R3) |
-| `POST` dengan `Origin: null` atau `http://0.0.0.0` | 403 |
-| `--host 0.0.0.0`, `Host: 0.0.0.0:8000` | 200 |
-| `--host 0.0.0.0`, `Host: 192.168.0.13:8000` | 400 (R2) |
-
-**Tidak ditemukan celah baru yang bisa dieksploitasi.** Yang ditemukan adalah satu regresi fungsi dan satu
-pelonggaran pertahanan berlapis:
-
-- **R1 (regresi):** di `src/wali/interfaces/web/app.py:37`, `LOCAL_HOSTS` berisi `"::1"`. Padahal
-  `TrustedHostMiddleware` (Starlette) mengurai `[::1]:8000` menjadi host `"[::1]"` dengan kurung siku, jadi
-  keduanya tidak pernah cocok. Akibatnya, akses lewat `http://[::1]:8000/` ditolak, dan `--host ::1` membuat server
-  tidak bisa dipakai sama sekali. Pengecekan Origin di baris 88 justru cocok, karena `urlsplit` membuang kurung
-  siku. Proxy Next (`lib/local-request.ts:3`) sudah benar karena memakai `"[::1]"`. Tidak ada tes FastAPI untuk IPv6.
-- **R3 (pelonggaran):** `main` mewajibkan Origin sama persis dengan skema dan port, sedangkan sekarang cukup
-  hostname-nya lokal (`app.py:88`, `local-request.ts:17-18`). Pelonggaran ini tidak bisa dieksploitasi dari browser.
-  Halaman di port lain tetap lintas origin, dan POST JSON butuh preflight CORS. FastAPI menolak `OPTIONS` (403),
-  dan tidak ada header CORS. Namun lapisan pengecekan Origin sekarang lebih lemah dari sebelumnya.
+- **Ditemukan dan sudah diperbaiki (`ffaf4f4`).** Pada #4, catatan yang sebenarnya sudah tertulis tetapi
+  dilaporkan gagal akan ditulis ulang, lalu bentrok dengan `UNIQUE(invoice_id)` selamanya. Akibatnya, semua
+  pembayaran berikutnya ditolak sampai aplikasi di-restart. Tesnya terbukti gagal tanpa perbaikan.
+- **Diperiksa, aman.** #9 memeriksa token dulu dan baru memakainya sesudah keputusan. Semua itu berjalan di bawah
+  `RLock` guard yang sama, jadi tidak ada celah waktu untuk pemakaian ganda. Token yang dibatalkan karena
+  konfirmasi ulang tidak dikembalikan ke inbox (ada tesnya). #3 tidak pernah mengirim approval yang sama dua kali.
+  #7 hanya bisa menambah kecurigaan, tidak bisa menguranginya.
+- **R3 dari putaran pertama tetap ada.** Pengecekan Origin tidak memeriksa port dan skema. Ini tidak bisa
+  dieksploitasi dari browser karena preflight CORS gagal.
 
 ## Daftar sisa risiko
 
-| # | Risiko | Severity | Asal | Yang perlu dilakukan |
-|---|---|---|---|---|
-| — | Item #3 sampai #12 belum diperbaiki | Required | `02-review.md` | Pemilik menjawab pertanyaan di `03-fixes.md`, lalu tiap item dikerjakan satu commit beserta tes. |
-| — | #13: web tanpa login | Required (diterima untuk demo) | `02-review.md` | Jangan jalankan di luar loopback atau `--host 0.0.0.0` sebelum ada login atau token per peluncuran. |
-| R1 | `[::1]` ditolak oleh FastAPI | **Selesai** (`e38bfd6`) | `5e943e7` | Host IPv6 diberi kurung siku sebelum diserahkan ke `TrustedHostMiddleware`. Tes `test_every_local_host_name_reaches_the_api` gagal untuk `[::1]:8000` dan `[::1]` sebelum perbaikan, lalu lulus sesudahnya. |
-| R2 | Akses lewat IP LAN ditolak | Keputusan pemilik | `5e943e7` | Putuskan apakah diterima. Kalau ya, catat di `03-fixes.md` dan hapus `192.168.0.13` dari `allowedDevOrigins` (#30). Kalau tidak, allowlist harus bisa dikonfigurasi. |
-| R3 | Port dan skema Origin tidak dicek | Nit (defense-in-depth) | `5e943e7` | Bandingkan origin lengkap (skema, host, dan port) dengan daftar yang dikonfigurasi. Ini sejalan dengan #20. |
-| R4 | 2 tes gagal (F1), CI `pytest` merah | Required (proses) | sudah ada sebelum audit | Perlu keputusan pemilik: tulis ulang `docs/baseline/offline.json` dan ganti angka 20 di tes. |
-| R5 | `test:unit` tidak dijalankan di CI | Nit | `5e943e7`, `775ac0f` | Tambahkan langkah `npm run test:unit` di job frontend `ci.yml`. Node 22 di CI sudah mendukung `node --test` untuk `.ts`. |
-| R6 | Header anti-clickjacking belum dicek di server sungguhan | Nit | `775ac0f` | Jalankan `next build && next start`, lalu `curl -I` halaman `/approvals`. |
-| R7 | `frontend/next-env.d.ts` termodifikasi (F8) | Nit | lingkungan | `git checkout -- frontend/next-env.d.ts` sebelum merge. |
-| R8 | Item Optional/Nit #14 sampai #37 | Optional/Nit | `02-review.md` | Tidak dikerjakan di tahap ini. #37 (pip-audit) sekarang sudah dicek manual dan hasilnya bersih, tetapi belum masuk CI. |
-| R9 | Tag `audit-baseline` tidak ada | Proses | - | Buat tag pada commit yang dimaksud (kemungkinan `38d29ea`), supaya audit berikutnya bisa dibandingkan dengan titik yang sama. |
+| # | Risiko | Severity | Yang perlu dilakukan |
+|---|---|---|---|
+| R-A | **#13: web tanpa login.** Siapa pun yang menjangkau port bertindak sebagai pemilik. | Required (diterima hanya untuk demo) | Jangan jalankan dengan `--host 0.0.0.0` atau di jaringan. Sebelum dipakai di luar demo, perlu login atau token per peluncuran (fitur baru, butuh keputusan terpisah). |
+| R-B | **Batas mingguan dan inbox masih per proses.** #5 hanya membereskan rantai audit. Kalau web dan Telegram berjalan bersamaan dengan `data/` yang sama, keduanya bisa lolos cek `per_week` di waktu yang sama. Inbox konfirmasi juga tidak dibagi antarproses. | Required (lanjutan #5) | Jalankan satu antarmuka per folder `data/`, atau tambahkan lock lintas proses di sekitar keputusan dan eksekusi. |
+| R-C | Pembayaran yang belum tercatat (#4) hanya disimpan di memori. Kalau aplikasi di-restart sebelum catatannya tertulis, hitungan itu hilang. | Optional | Faktur sudah berstatus `paid` di bank, jadi pembayaran ganda tetap tertahan. Yang tidak terlindungi hanya total mingguannya. |
+| R-D | Pada #3, kalau faktur tampil "paid" setelah bank tidak menjawab, status yang dilaporkan `failed`, dan entri buku tidak dibuat otomatis. | Nit | Pesannya sudah tegas ("do not pay it again"). Entri buku perlu ditambah manual. |
+| R-E | Jalur kunci file Windows (`msvcrt`) di #5 belum pernah diuji, karena CI dan tes berjalan di Linux. | Nit | Uji di Windows kalau aplikasi dijalankan di sana. |
+| R-F | Upaya konfirmasi saat gangguan (#9) tidak dicatat di log audit. | Nit | Tambahkan event audit kalau dibutuhkan untuk penelusuran. |
+| R-G | R3: port dan skema Origin tidak dicek. | Nit | Bandingkan origin lengkap (lihat #20). |
+| R-H | `test:unit` belum dijalankan di CI. Action CI masih dipin dengan tag (#31). | Nit | Tambahkan langkah `npm run test:unit` di `ci.yml`, dan pin action ke SHA. |
+| R-I | Item Optional/Nit #14 sampai #29 dan #32 sampai #37 belum dikerjakan. Yang paling relevan: #14 (pembayaran faktur yang tidak disebut pengguna, keputusan desain D3), #18 (jumlah tanpa batas digit), #21 (rantai audit tanpa tanda tangan), #23 (kunci guard 0644), #15 (lock global, chat tanpa rate limit). | Optional/Nit | Kerjakan sebelum dipakai di luar demo. |
+| R-J | Skrip Playwright dan evaluasi dengan model sungguhan belum dijalankan. | Proses | Jalankan di mesin yang punya browser dan kunci API. |
+| R-K | Tag `audit-baseline` tidak ada. | Proses | Buat tag di `38d29ea`. |
 
 ## Rollback
 
-Branch belum di-merge, jadi tidak ada yang perlu di-rollback. Kalau #1 dan #2 di-merge lalu bermasalah,
-`git revert 775ac0f 5e943e7` mengembalikan perilaku `main`. Tidak ada migrasi data, karena `data/`, `guard.db`,
-dan log audit tidak disentuh.
+Belum di-merge, jadi belum ada yang perlu di-rollback. Setiap perbaikan ada di commit sendiri dan bisa di-revert
+satu per satu. Tidak ada migrasi skema: `guard.db` dan `audit.jsonl` lama tetap bisa dibaca. Satu-satunya data
+yang diubah adalah `docs/baseline/offline.json`, yaitu baseline tes, bukan data aplikasi.
 
-## Syarat menjadi GO
+## Ringkasan putaran pertama (`5988cee`)
 
-1. #3 sampai #12 diperbaiki, masing-masing beserta tes, setelah pemilik memutuskan.
-2. R2 diputuskan (R1 sudah diperbaiki di `e38bfd6`).
-3. `uv run pytest` lulus 100% (F1 sudah diputuskan) dan `test:unit` berjalan di CI.
-4. #13 diputuskan: login atau token sebelum dipakai di luar demo, atau pemakaian dibatasi tegas hanya untuk demo lokal.
-
-## Pembaruan setelah laporan
-
-- **R1 diperbaiki** di `e38bfd6`. Setelah perbaikan, `uv run pytest -q` menghasilkan 1463 lulus dan 2 gagal. Dua
-  kegagalan itu sama dengan F1, sedangkan 4 tes baru semuanya lulus. `ruff` bersih.
-- Keputusan tetap **NO-GO**. Item #3 sampai #13, R2, dan F1 belum selesai.
+NO-GO di `0b3b4f5`, karena: #3 sampai #13 belum dikerjakan; ada regresi `[::1]` (R1, diperbaiki `e38bfd6`);
+penolakan IP LAN belum disetujui (R2, sekarang disetujui); dan 2 tes F1 gagal (diperbaiki `5740930`).
