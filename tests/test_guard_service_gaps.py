@@ -236,3 +236,29 @@ def test_a_failure_writing_the_guards_own_record_is_noted_but_the_payment_stands
     assert decision.status == "executed"
     assert "could not be written to the guard's own records" in decision.user_message
     assert len(ready.env.list_payments()) == 1
+
+
+def test_no_further_payment_until_an_unwritten_payment_is_recorded(
+    ready, owner, bookkeeper, ground_truth, monkeypatch
+):
+    """The weekly limit is counted from the guard's own records, so a payment missing from them
+    would let the next ones exceed it."""
+    first, second = clean_invoices(ready, owner, ground_truth, 1, 999_999)[:2]
+
+    def broken(**kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(ready.store, "record_execution", broken)
+    assert ready.guard.propose_payment(bookkeeper, first.id).status == "executed"
+
+    refused = ready.guard.propose_payment(bookkeeper, second.id)
+
+    assert (refused.status, refused.reason_code) == ("denied", "RECORDS_OUT_OF_SYNC")
+    assert len(ready.env.list_payments()) == 1
+
+    monkeypatch.undo()
+    assert ready.guard.propose_payment(bookkeeper, second.id).status == "executed"
+    assert ready.store.invoice_paid(first.id)
+    assert ready.store.paid_since(ready.clock() - dt.timedelta(days=7)) == (
+        first.amount + second.amount
+    )

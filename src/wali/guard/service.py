@@ -128,6 +128,10 @@ _ENTRY_UNCERTAIN = (
     "The books did not answer, so it is not certain whether the entry was recorded. "
     "Check the books before adding it again."
 )
+_OUT_OF_SYNC = (
+    "An earlier payment could not be written to the guard's records, so the weekly total "
+    "cannot be checked. Nothing more is paid until it is recorded. Please try again later."
+)
 _UNREACHABLE = (
     "I could not reach the financial system to check this, so nothing was changed. "
     "Please try again in a moment."
@@ -302,6 +306,8 @@ class GuardService:
         self._proposals_per_hour = proposals_per_hour
         self._confirmations = ConfirmationStore(dt.timedelta(seconds=confirm_ttl_seconds))
         self._pending: dict[str, _PendingPayment] = {}
+        # Payments that went through but could not be written to the store yet.
+        self._unrecorded: list[dict[str, Any]] = []
         self._drafts: dict[str, MandateTerms] = {}
         self._outbox: list[ConfirmationRequest] = []
         self._lock = threading.RLock()
@@ -622,6 +628,8 @@ class GuardService:
         )
         if refused is not None:
             return refused, None
+        if not self._write_unrecorded():
+            return Deny(reason_code="RECORDS_OUT_OF_SYNC", user_message=_OUT_OF_SYNC), None
         try:
             view = self._build_view(
                 proposal, principal, now, suspicious, proposals_last_hour, session_id
@@ -875,26 +883,21 @@ class GuardService:
 
         # The money has moved. Nothing below may turn this into a reported failure.
         notes = []
-        try:
-            self._store.record_execution(
-                approval_id=approval.approval_id,
-                invoice_id=terms.invoice_id,
-                supplier_id=terms.supplier_id,
-                amount=terms.amount,
-                currency=terms.currency,
-                proposed_by=proposer.user_id,
-                now=now,
-            )
-            self._audit(
-                "payment_executed",
-                confirmed_by or proposer,
-                now,
-                session_id,
-                transaction_id=result.transaction_id,
-                **common,
-            )
-        except Exception:
-            self._audit_error("record_execution", proposer, session_id)
+        recorded = self._record_execution(approval, proposer, now, session_id)
+        if recorded:
+            try:
+                self._audit(
+                    "payment_executed",
+                    confirmed_by or proposer,
+                    now,
+                    session_id,
+                    transaction_id=result.transaction_id,
+                    **common,
+                )
+            except Exception:
+                self._audit_error("record_execution", proposer, session_id)
+                recorded = False
+        if not recorded:
             notes.append("The payment could not be written to the guard's own records.")
 
         summary = self._summary(view, view.balance.amount - terms.amount)
@@ -938,19 +941,34 @@ class GuardService:
     def _record_execution(
         self, approval: GuardApproval, proposer: Principal, now: dt.datetime, session_id: str
     ) -> bool:
+        """Write a payment to the store. One that cannot be written is kept, and nothing more
+        is paid until it is (see ``_write_unrecorded``)."""
+        record = {
+            "approval_id": approval.approval_id,
+            "invoice_id": approval.invoice_id,
+            "supplier_id": approval.supplier_id,
+            "amount": approval.amount,
+            "currency": approval.currency,
+            "proposed_by": proposer.user_id,
+            "now": now,
+        }
         try:
-            self._store.record_execution(
-                approval_id=approval.approval_id,
-                invoice_id=approval.invoice_id,
-                supplier_id=approval.supplier_id,
-                amount=approval.amount,
-                currency=approval.currency,
-                proposed_by=proposer.user_id,
-                now=now,
-            )
+            self._store.record_execution(**record)
         except Exception:
             self._audit_error("record_execution", proposer, session_id)
+            self._unrecorded.append(record)
             return False
+        return True
+
+    def _write_unrecorded(self) -> bool:
+        """The weekly total is read from the store, so it is wrong while a payment is missing
+        from it. Returns False while any still cannot be written."""
+        while self._unrecorded:
+            try:
+                self._store.record_execution(**self._unrecorded[0])
+            except Exception:
+                return False
+            self._unrecorded.pop(0)
         return True
 
     def _unanswered_payment(
