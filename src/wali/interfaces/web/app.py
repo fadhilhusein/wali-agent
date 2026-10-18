@@ -68,7 +68,10 @@ def create_web_app(
     acts as. ``hosts`` are the host names this server answers to; any other ``Host`` header is
     refused, which stops a website whose name was pointed at this computer from reaching it."""
     api = FastAPI(title="Wali (simulation)", docs_url=None, redoc_url=None, openapi_url=None)
-    api.add_middleware(TrustedHostMiddleware, allowed_hosts=list(hosts))
+    # A Host header carries an IPv6 address in brackets ("[::1]:8000"), and the middleware
+    # compares it with the brackets kept.
+    allowed = [f"[{host}]" if ":" in host else host for host in hosts]
+    api.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed)
 
     def principal(role: str) -> Principal:
         found = principals.get(role)

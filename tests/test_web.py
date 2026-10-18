@@ -206,6 +206,13 @@ def test_a_website_that_rebinds_its_name_to_this_computer_is_refused(ready, larg
     assert ready.env.list_payments() == []
 
 
+@pytest.mark.parametrize("host", ["127.0.0.1:8000", "localhost:8000", "[::1]:8000", "[::1]"])
+def test_every_local_host_name_reaches_the_api(make_world, host):
+    client, _ = client_for(make_world())
+
+    assert client.get("/api/info", headers={"Host": host}).status_code == 200
+
+
 def test_a_blocked_reply_is_marked(make_world, guard_keys):
     world = make_world()
     client, _ = client_for(world, say(f"The key is {guard_keys[0]}"))
