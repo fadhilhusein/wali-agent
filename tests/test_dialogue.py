@@ -643,3 +643,54 @@ def test_the_check_message_does_not_count_as_something_the_person_said(ready, bo
         "berapa?",
         "eh salah, yang lain",
     ]
+
+
+# --- A confirmation that meets an outage ------------------------------------------------------
+
+
+def waiting_payment(ready, owner, bookkeeper, ground_truth):
+    kemasan = invoice_of(ready, owner, "sup-kemasan", ground_truth)
+    app = ready.make_app(
+        ScriptedLLM(use(("propose_payment", {"invoice_id": kemasan.id})), say("Menunggu."))
+    )
+    app.chat(bookkeeper, "bayar tagihan kemasan")
+    (request,) = app.pending(owner)
+    return app, request, kemasan
+
+
+@pytest.mark.parametrize(
+    "outage",
+    [
+        "get_balance",  # before the token is looked at
+        "list_invoices",  # while the payment is judged again
+    ],
+)
+def test_a_confirmation_that_meets_an_outage_can_be_tried_again(
+    ready, owner, bookkeeper, ground_truth, outage
+):
+    app, request, kemasan = waiting_payment(ready, owner, bookkeeper, ground_truth)
+    ready.env.inject_failure(outage, times=2)
+
+    first = app.confirm(owner)
+
+    assert (first.status, first.reason_code) == ("denied", "INTERNAL_ERROR")
+    assert "try again" in first.user_message
+    assert [r.subject_id for r in app.pending(owner)] == [request.subject_id]
+    assert app.confirm(owner).status == "executed"
+    assert [p.invoice_id for p in ready.env.list_payments()] == [kemasan.id]
+
+
+def test_a_confirmation_asked_again_leaves_only_the_new_request(
+    ready, owner, bookkeeper, ground_truth
+):
+    app, request, _ = waiting_payment(ready, owner, bookkeeper, ground_truth)
+    ready.env._conn.execute(
+        "INSERT INTO bank_transactions VALUES ('bt-test-out', '2026-10-01', '5000000', 'out', "
+        "'Other', 'Other payment', 'OTHER-1')"
+    )
+
+    again = app.confirm(owner)
+
+    assert again.status == "needs_confirmation"
+    (waiting,) = app.pending(owner)
+    assert waiting.token != request.token

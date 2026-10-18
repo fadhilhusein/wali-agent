@@ -132,6 +132,8 @@ _OUT_OF_SYNC = (
     "An earlier payment could not be written to the guard's records, so the weekly total "
     "cannot be checked. Nothing more is paid until it is recorded. Please try again later."
 )
+# Denials that say nothing about the payment itself: a confirmation survives them.
+_PASSING_OUTAGES = frozenset({"INTERNAL_ERROR", "RECORDS_OUT_OF_SYNC"})
 _UNREACHABLE = (
     "I could not reach the financial system to check this, so nothing was changed. "
     "Please try again in a moment."
@@ -390,6 +392,11 @@ class GuardService:
         with self._lock:
             requests, self._outbox = self._outbox, []
             return requests
+
+    def token_is_live(self, token: str) -> bool:
+        """Whether a confirmation token can still be used. For an interface holding one."""
+        with self._lock:
+            return self._confirmations.is_live_token(token)
 
     def is_pending(self, subject_id: str) -> bool:
         """Whether a proposal or draft is still waiting for confirmation. It stops being so
@@ -1058,10 +1065,10 @@ class GuardService:
         if problem is not None:
             return self._refuse_confirmation(principal, problem, now, session_id)
         try:
-            item = self._confirmations.redeem(token, principal, "payment", now)
+            item = self._confirmations.check(token, principal, "payment", now)
         except ConfirmationError as error:
             return self._refuse_confirmation(principal, error.code, now, session_id)
-        pending = self._pending.pop(item.subject_id, None)
+        pending = self._pending.get(item.subject_id)
         if pending is None:
             return self._refuse_confirmation(principal, "CONFIRMATION_INVALID", now, session_id)
         proposal = pending.proposal
@@ -1070,6 +1077,15 @@ class GuardService:
         decision, view = self._decide(
             proposal, pending.proposer, now, pending.suspicious, 0, session_id
         )
+        if isinstance(decision, Deny) and decision.reason_code in _PASSING_OUTAGES:
+            # The token is kept, so the owner can press Confirm again once this clears.
+            return PaymentDecision(
+                status="denied",
+                reason_code=decision.reason_code,
+                user_message=decision.user_message,
+            )
+        self._confirmations.redeem(token, principal, "payment", now)
+        del self._pending[item.subject_id]
         if isinstance(decision, Deny):
             return self._denied(proposal, pending.proposer, decision, now, session_id)
         if decision.terms.digest() != item.subject_hash:

@@ -175,6 +175,12 @@ class WaliApp:
             and request.business_id == principal.business_id
         ]
 
+    def _keep_if_live(self, request: ConfirmationRequest) -> None:
+        """The request holds the only copy of its token. When the guard did not use the token
+        (it could not reach the environment, say), the request goes back to wait."""
+        if self.guard.token_is_live(request.token) and request not in self._inbox:
+            self._inbox.append(request)
+
     def _take(
         self, principal: Principal, number: int, subject_id: str | None
     ) -> ConfirmationRequest | None:
@@ -213,6 +219,7 @@ class WaliApp:
                     principal, request.token, session_id=session_id
                 )
             self._collect()
+            self._keep_if_live(request)
             return decision
 
     def cancel(
