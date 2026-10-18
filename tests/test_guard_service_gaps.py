@@ -262,3 +262,22 @@ def test_no_further_payment_until_an_unwritten_payment_is_recorded(
     assert ready.store.paid_since(ready.clock() - dt.timedelta(days=7)) == (
         first.amount + second.amount
     )
+
+
+def test_a_record_that_was_written_after_all_does_not_block_payments(
+    ready, owner, bookkeeper, ground_truth, monkeypatch
+):
+    """The store wrote the row but reported a failure: writing it again would clash with it
+    forever and refuse every payment from then on."""
+    first, second = clean_invoices(ready, owner, ground_truth, 1, 999_999)[:2]
+    write = ready.store.record_execution
+
+    def written_then_failed(**kwargs):
+        write(**kwargs)
+        raise OSError("lost acknowledgement")
+
+    monkeypatch.setattr(ready.store, "record_execution", written_then_failed)
+    assert ready.guard.propose_payment(bookkeeper, first.id).status == "executed"
+    monkeypatch.undo()
+
+    assert ready.guard.propose_payment(bookkeeper, second.id).status == "executed"

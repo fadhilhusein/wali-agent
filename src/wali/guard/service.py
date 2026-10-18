@@ -971,8 +971,11 @@ class GuardService:
         """The weekly total is read from the store, so it is wrong while a payment is missing
         from it. Returns False while any still cannot be written."""
         while self._unrecorded:
+            record = self._unrecorded[0]
             try:
-                self._store.record_execution(**self._unrecorded[0])
+                # A failed write may have landed anyway; writing it twice would clash forever.
+                if not self._store.invoice_paid(record["invoice_id"]):
+                    self._store.record_execution(**record)
             except Exception:
                 return False
             self._unrecorded.pop(0)
