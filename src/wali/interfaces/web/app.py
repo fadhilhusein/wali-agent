@@ -14,11 +14,13 @@ from __future__ import annotations
 
 import argparse
 import sys
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
@@ -32,6 +34,7 @@ from wali.tools.base import ToolFailure
 CHANNEL = "web"
 STATIC = Path(__file__).with_name("static")
 MAX_MESSAGE_CHARS = 4000
+LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
 SECURITY_HEADERS = {
     "Content-Security-Policy": (
         "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; "
@@ -58,10 +61,14 @@ class RequestBody(_Body):
     subject_id: str = Field(min_length=1, max_length=100)
 
 
-def create_web_app(wali: WaliApp, principals: Mapping[str, Principal]) -> FastAPI:
+def create_web_app(
+    wali: WaliApp, principals: Mapping[str, Principal], hosts: Sequence[str] = LOCAL_HOSTS
+) -> FastAPI:
     """The FastAPI application. ``principals`` maps each role the page offers to the user it
-    acts as."""
+    acts as. ``hosts`` are the host names this server answers to; any other ``Host`` header is
+    refused, which stops a website whose name was pointed at this computer from reaching it."""
     api = FastAPI(title="Wali (simulation)", docs_url=None, redoc_url=None, openapi_url=None)
+    api.add_middleware(TrustedHostMiddleware, allowed_hosts=list(hosts))
 
     def principal(role: str) -> Principal:
         found = principals.get(role)
@@ -72,12 +79,14 @@ def create_web_app(wali: WaliApp, principals: Mapping[str, Principal]) -> FastAP
     @api.middleware("http")
     async def guard_requests(request: Request, call_next):
         # Another website open in the same browser may not drive this one: a changing request
-        # must be JSON (which a plain cross-site form cannot send) from this page's own origin.
+        # must be JSON (which a plain cross-site form cannot send) from a page on a local host.
+        # The Origin is checked against the configured hosts, not against the Host header,
+        # which the caller chooses.
         if request.method not in ("GET", "HEAD"):
             content_type = request.headers.get("content-type", "").split(";")[0].strip()
             origin = request.headers.get("origin")
-            same_origin = origin is None or origin == f"{request.url.scheme}://{request.url.netloc}"
-            if content_type != "application/json" or not same_origin:
+            local_origin = origin is None or urlsplit(origin).hostname in hosts
+            if content_type != "application/json" or not local_origin:
                 return JSONResponse({"detail": "Refused."}, status_code=403)
         response = await call_next(request)
         response.headers.update(SECURITY_HEADERS)
@@ -142,9 +151,6 @@ def create_web_app(wali: WaliApp, principals: Mapping[str, Principal]) -> FastAP
     return api
 
 
-LOCAL_HOSTS = ("127.0.0.1", "localhost", "::1")
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run the Wali demo web page (simulation only).")
     parser.add_argument("--host", default="127.0.0.1")
@@ -167,5 +173,6 @@ def main(argv: list[str] | None = None) -> int:
     import uvicorn
 
     print(f"{SIMULATION_NOTE} Open http://{args.host}:{args.port}/")
-    uvicorn.run(create_web_app(wali, wali.env.principals()), host=args.host, port=args.port)
+    hosts = (*LOCAL_HOSTS, args.host)
+    uvicorn.run(create_web_app(wali, wali.env.principals(), hosts), host=args.host, port=args.port)
     return 0

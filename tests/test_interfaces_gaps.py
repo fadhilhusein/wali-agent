@@ -152,7 +152,9 @@ def test_the_cli_rejects_a_role_it_does_not_know():
 
 def web(world, principals=None, *steps):
     app = world.make_app(ScriptedLLM(*steps))
-    return TestClient(create_web_app(app, principals or world.env.principals())), app
+    return TestClient(
+        create_web_app(app, principals or world.env.principals()), base_url="http://127.0.0.1:8000"
+    ), app
 
 
 def test_a_role_missing_from_the_business_is_not_found_and_not_listed(world):

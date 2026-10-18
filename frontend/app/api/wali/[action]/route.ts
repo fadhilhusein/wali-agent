@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { isLocalRequest } from "@/lib/local-request";
+
 const GET_ACTIONS = new Set(["info", "pending"]);
 const POST_ACTIONS = new Set(["chat", "confirm", "cancel", "mandate", "reset"]);
 const BACKEND = process.env.WALI_API_ORIGIN ?? "http://127.0.0.1:8000";
@@ -10,6 +12,9 @@ export async function GET(request: NextRequest, context: Context) {
   const { action } = await context.params;
   if (!GET_ACTIONS.has(action))
     return NextResponse.json({ detail: "Not found." }, { status: 404 });
+  if (!isLocalRequest(request.headers.get("host"), request.headers.get("origin"))) {
+    return NextResponse.json({ detail: "Refused." }, { status: 403 });
+  }
   const upstream = new URL(`/api/${action}`, BACKEND);
   if (action === "pending") {
     const role = request.nextUrl.searchParams.get("role");
@@ -22,10 +27,7 @@ export async function POST(request: NextRequest, context: Context) {
   const { action } = await context.params;
   if (!POST_ACTIONS.has(action))
     return NextResponse.json({ detail: "Not found." }, { status: 404 });
-  const origin = request.headers.get("origin");
-  const host = request.headers.get("host");
-  const sameOrigin = !origin || (host && origin === `http://${host}`);
-  if (!sameOrigin) {
+  if (!isLocalRequest(request.headers.get("host"), request.headers.get("origin"))) {
     return NextResponse.json({ detail: "Refused." }, { status: 403 });
   }
   if (

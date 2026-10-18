@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 from conftest import ScriptedLLM, flagged_invoice_ids, say, use
 from wali.interfaces.web.app import STATIC, create_web_app
 
+LOCAL = "http://127.0.0.1:8000"
+
 
 @pytest.fixture
 def large(ready, owner, ground_truth):
@@ -25,7 +27,7 @@ def large(ready, owner, ground_truth):
 
 def client_for(world, *steps):
     app = world.make_app(ScriptedLLM(*steps))
-    return TestClient(create_web_app(app, world.env.principals())), app
+    return TestClient(create_web_app(app, world.env.principals()), base_url=LOCAL), app
 
 
 def propose(ready, large):
@@ -182,11 +184,26 @@ def test_another_website_cannot_drive_the_api(ready, large):
     same_site = client.post(
         "/api/confirm",
         json={"role": "owner", "subject_id": subject},
-        headers={"Origin": "http://testserver"},
+        headers={"Origin": "http://localhost:8000"},
     )
 
     assert as_form.status_code == other_site.status_code == 403
     assert same_site.json()["status"] == "executed"
+
+
+def test_a_website_that_rebinds_its_name_to_this_computer_is_refused(ready, large):
+    client, _, reply = propose(ready, large)
+    subject = reply.json()["new_requests"][0]["subject_id"]
+    rebound = {"Host": "evil.example", "Origin": "http://evil.example"}
+
+    pending = client.get("/api/pending", params={"role": "owner"}, headers={"Host": "evil.example"})
+    confirmed = client.post(
+        "/api/confirm", json={"role": "owner", "subject_id": subject}, headers=rebound
+    )
+
+    assert pending.status_code == 400
+    assert confirmed.status_code == 403
+    assert ready.env.list_payments() == []
 
 
 def test_a_blocked_reply_is_marked(make_world, guard_keys):
