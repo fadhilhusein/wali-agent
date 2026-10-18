@@ -19,3 +19,7 @@ test("every page tells browsers not to guess content types", async () => {
 
   assert.equal(headers.get("X-Content-Type-Options"), "nosniff");
 });
+
+test("the dev server only trusts this computer", () => {
+  assert.deepEqual(nextConfig.allowedDevOrigins, ["127.0.0.1"]);
+});
