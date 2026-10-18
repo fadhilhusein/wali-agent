@@ -9,6 +9,7 @@ import pytest
 from conftest import activate_mandate, flagged_invoice_ids, mandate_request
 from wali.guard.service import GuardService
 from wali.models import NewBookEntry
+from wali.tools.base import ToolTimeout
 
 DAY = dt.date(2026, 10, 1)
 
@@ -103,6 +104,22 @@ def test_an_unreachable_environment_refuses_a_books_entry(ready, bookkeeper):
     decision = ready.guard.record_book_entry(bookkeeper, book_entry())
 
     assert (decision.status, decision.reason_code) == ("denied", "INTERNAL_ERROR")
+
+
+def test_a_books_entry_without_an_answer_is_not_written_twice(ready, bookkeeper, monkeypatch):
+    calls = []
+
+    def unanswered(*args):
+        calls.append(args)
+        raise ToolTimeout("No answer in time.")
+
+    monkeypatch.setattr(ready.env, "record_book_entry", unanswered)
+
+    decision = ready.guard.record_book_entry(bookkeeper, book_entry())
+
+    assert (decision.status, decision.reason_code) == ("denied", "INTERNAL_ERROR")
+    assert len(calls) == 1
+    assert "not certain" in decision.user_message
 
 
 def test_an_expired_mandate_refuses_a_books_entry(ready, bookkeeper):

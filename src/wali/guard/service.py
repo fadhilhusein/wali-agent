@@ -124,6 +124,10 @@ BOOK_CATEGORY_FOR_PAYMENTS = "supplier_payment"
 _INTERNAL_ERROR = (
     "Something went wrong while handling this request, so nothing was changed. Please try again."
 )
+_ENTRY_UNCERTAIN = (
+    "The books did not answer, so it is not certain whether the entry was recorded. "
+    "Check the books before adding it again."
+)
 _UNREACHABLE = (
     "I could not reach the financial system to check this, so nothing was changed. "
     "Please try again in a moment."
@@ -846,18 +850,13 @@ class GuardService:
             **common,
         )
 
+        # Sent once. An approval that did reach the bank would be refused as used on a second
+        # try, and the money would then look unpaid.
         try:
-            result: PaymentResult = self._read(self._env.execute_payment, approval)
+            result: PaymentResult = self._env.execute_payment(approval)
         except ToolFailure:
             self._audit("payment_failed", proposer, now, session_id, **common)
-            return PaymentDecision(
-                status="failed",
-                proposal_id=proposal.proposal_id,
-                reason_code="ENVIRONMENT_FAILURE",
-                user_message=(
-                    "The payment system did not respond, so nothing was paid. Please try again."
-                ),
-            )
+            return self._unanswered_payment(proposer, proposal, approval, now, session_id)
         if result.status != "success":
             self._audit(
                 "payment_rejected", proposer, now, session_id, message=result.message, **common
@@ -910,7 +909,7 @@ class GuardService:
                 invoice_id=terms.invoice_id,
             )
             try:
-                recorded = self._read(self._env.record_book_entry, proposer, entry)
+                recorded = self._env.record_book_entry(proposer, entry)
                 self._audit(
                     "book_entry_recorded",
                     proposer,
@@ -934,6 +933,77 @@ class GuardService:
             user_message=" ".join([message, *notes]),
             summary=shown,
             transaction_id=result.transaction_id,
+        )
+
+    def _record_execution(
+        self, approval: GuardApproval, proposer: Principal, now: dt.datetime, session_id: str
+    ) -> bool:
+        try:
+            self._store.record_execution(
+                approval_id=approval.approval_id,
+                invoice_id=approval.invoice_id,
+                supplier_id=approval.supplier_id,
+                amount=approval.amount,
+                currency=approval.currency,
+                proposed_by=proposer.user_id,
+                now=now,
+            )
+        except Exception:
+            self._audit_error("record_execution", proposer, session_id)
+            return False
+        return True
+
+    def _unanswered_payment(
+        self,
+        proposer: Principal,
+        proposal: PaymentProposal,
+        approval: GuardApproval,
+        now: dt.datetime,
+        session_id: str,
+    ) -> PaymentDecision:
+        """The bank did not answer. Whether the money moved is read from the invoice."""
+        try:
+            payables: list[Invoice] = self._read(self._env.list_invoices, proposer, "payable")
+            invoice = next((i for i in payables if i.id == approval.invoice_id), None)
+        except Exception:
+            invoice = None
+        if invoice is not None and invoice.status == "open":
+            return PaymentDecision(
+                status="failed",
+                proposal_id=proposal.proposal_id,
+                reason_code="ENVIRONMENT_FAILURE",
+                user_message=(
+                    "The payment system did not respond. The invoice is still open, so nothing "
+                    "was paid. Please try again."
+                ),
+            )
+        self._audit(
+            "payment_uncertain",
+            proposer,
+            now,
+            session_id,
+            proposal_id=proposal.proposal_id,
+            approval_id=approval.approval_id,
+            invoice_id=approval.invoice_id,
+            invoice_status=None if invoice is None else invoice.status,
+        )
+        if invoice is not None and invoice.status == "paid":
+            # Counted as paid, so the weekly limit and the duplicate check include it.
+            self._record_execution(approval, proposer, now, session_id)
+            message = (
+                "The payment system did not respond, but the invoice now shows as paid. "
+                "Do not pay it again. Check the bank statement."
+            )
+        else:
+            message = (
+                "The payment system did not respond, and it is not certain whether the invoice "
+                "was paid. Do not try again until the bank statement has been checked."
+            )
+        return PaymentDecision(
+            status="failed",
+            proposal_id=proposal.proposal_id,
+            reason_code="OUTCOME_UNCERTAIN",
+            user_message=message,
         )
 
     # --- Payments: confirming ------------------------------------------------------------
@@ -1400,7 +1470,8 @@ class GuardService:
                         "ROLE_NOT_ALLOWED", "Your role is not allowed to record book entries."
                     )
                 try:
-                    recorded: BookEntry = self._read(self._env.record_book_entry, principal, entry)
+                    # Sent once: an entry that did reach the books would be written twice.
+                    recorded: BookEntry = self._env.record_book_entry(principal, entry)
                 except AccessDenied:
                     return denied(
                         "ROLE_NOT_ALLOWED", "Your role is not allowed to record book entries."
@@ -1410,7 +1481,7 @@ class GuardService:
                         "INVOICE_INVALID", "I could not find the invoice this entry refers to."
                     )
                 except ToolFailure:
-                    return denied("INTERNAL_ERROR", _UNREACHABLE)
+                    return denied("INTERNAL_ERROR", _ENTRY_UNCERTAIN)
                 self._audit(
                     "book_entry_recorded",
                     principal,
