@@ -28,7 +28,7 @@ from wali.agent.loop import Agent, AgentReply, Session
 from wali.agent.prompts import SENTINEL_PROMPT, build_system_prompt, protected_texts
 from wali.config import Settings
 from wali.finance.reconcile import ReconcileConfig
-from wali.guard.audit import AuditLog
+from wali.guard.audit import AuditError, AuditLog
 from wali.guard.keys import public_key_of
 from wali.guard.sentinel import Sentinel
 from wali.guard.service import (
@@ -322,10 +322,16 @@ def build_app(
         )
     sentinel = Sentinel(sentinel_llm, prompt=SENTINEL_PROMPT)
     api_keys = (settings.anthropic_api_key, settings.llm_api_key, settings.telegram_bot_token)
+    try:
+        audit = AuditLog(settings.audit_log_path)
+    except AuditError as error:
+        raise SetupError(
+            f"{error} Move the audit log aside to start a new one, and keep it for review."
+        ) from None
     guard = GuardService(
         env,
         private_key,
-        AuditLog(settings.audit_log_path),
+        audit,
         business_id=business_id,
         currency=currency,
         store=GuardStore(settings.guard_db_path),

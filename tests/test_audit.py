@@ -1,5 +1,7 @@
 import datetime as dt
 import json
+import subprocess
+import sys
 from decimal import Decimal
 
 import pytest
@@ -197,3 +199,45 @@ def test_a_damaged_log_is_not_continued(path):
 
     with pytest.raises(AuditError, match="line 2"):
         AuditLog(path)
+
+
+def test_two_logs_on_one_file_keep_a_single_chain(path):
+    """The web page, CLI and Telegram bot may share one data folder, each with its own log."""
+    first, second = AuditLog(path), AuditLog(path)
+
+    for n in range(3):
+        first.append(ts=T0, event="from_first", data={"n": n})
+        second.append(ts=T0, event="from_second", data={"n": n})
+
+    status = verify_chain(path)
+    assert (status.ok, status.entries) == (True, 6)
+
+
+WRITER = """
+import datetime as dt, sys
+from wali.guard.audit import AuditLog
+log = AuditLog(sys.argv[1])
+for n in range(400):
+    log.append(ts=dt.datetime(2026, 10, 1, tzinfo=dt.UTC), event=sys.argv[2], data={"n": n})
+"""
+
+
+def test_processes_writing_at_the_same_time_keep_a_single_chain(path):
+    AuditLog(path)
+    writers = [
+        subprocess.Popen([sys.executable, "-c", WRITER, str(path), name])
+        for name in ("a", "b", "c")
+    ]
+    assert [writer.wait(timeout=60) for writer in writers] == [0, 0, 0]
+
+    status = verify_chain(path)
+    assert (status.ok, status.entries) == (True, 1200)
+
+
+def test_a_log_cut_in_the_middle_of_a_line_is_not_continued(path):
+    log = fill(path, 2)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write('{"ts": "2026-')
+
+    with pytest.raises(AuditError):
+        log.append(ts=T0, event="later")

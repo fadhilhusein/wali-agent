@@ -299,6 +299,15 @@ def test_build_app_creates_the_simulation_and_keeps_state_between_runs(settings_
     again.env.close()
 
 
+def test_a_damaged_audit_log_stops_start_up_with_a_plain_message(settings_env):
+    settings = load_settings(env=settings_env, env_file=None)
+    settings.audit_log_path.parent.mkdir(parents=True)
+    settings.audit_log_path.write_text("not json\n", encoding="utf-8")
+
+    with pytest.raises(SetupError, match="audit log"):
+        build_app(settings, llm=ScriptedLLM())
+
+
 def test_the_simulated_date_can_be_set(settings_env):
     settings = load_settings(env={**settings_env, "WALI_SIM_TODAY": "2026-10-20"}, env_file=None)
 
