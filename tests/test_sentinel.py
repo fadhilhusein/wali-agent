@@ -560,8 +560,34 @@ def test_beyond_the_call_limit_the_longest_texts_are_asked_about_first():
     verdicts = guard.screen([short, medium, long])
 
     assert model.asked == [long, medium]
-    assert [v.suspicious for v in verdicts] == [False, True, True]
+    assert [v.categories for v in verdicts] == [("not_screened",), ("other",), ("other",)]
     assert guard.stats["not_sent_to_model"] == 1
+
+
+def test_text_the_model_never_saw_is_unchecked_not_clean():
+    """Padding a record with harmless long fields must not leave a short injection to the
+    rules alone without the turn being marked."""
+    model = ScreeningModel()
+    guard = sentinel(model, batch_items=1, max_calls=1)
+
+    left_over = guard.screen(["Catatan pengiriman barang minggu ini", "Catatan pengiriman barang"])[
+        1
+    ]
+
+    assert left_over.suspicious and not left_over.withhold
+    assert left_over.categories == ("not_screened",)
+
+
+def test_the_part_of_a_long_text_past_the_cut_is_unchecked():
+    model = ScreeningModel()
+    guard = sentinel(model, item_chars=60)
+    long = "Catatan pengiriman barang " + "kata " * 40 + "akhir catatan"
+
+    verdict = guard.screen([long])[0]
+
+    assert verdict.suspicious and not verdict.withhold
+    assert verdict.categories == ("not_screened",)
+    assert guard.screen(["Catatan pengiriman barang gudang"]) == [CLEAN]
 
 
 def test_the_cache_does_not_grow_without_limit():

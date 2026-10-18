@@ -61,7 +61,10 @@ CATEGORIES: dict[str, str] = {
     "encoded_payload": "It contains a long encoded string.",
     "other": "The screening model found it suspicious.",
     "screening_failed": "The screening model gave no usable answer, so the text is unchecked.",
+    "not_screened": "Some of the text was not sent to the screening model, so it is unchecked.",
 }
+# Categories that mean the text was not checked, rather than found to be an instruction.
+UNCHECKED = frozenset({"screening_failed", "not_screened"})
 
 # Shown to the model in place of text that was flagged. It carries nothing from the original.
 WITHHELD_TEXT = "[withheld: this text looked like an instruction, not business data]"
@@ -82,7 +85,7 @@ class Verdict(Model):
         """True when a layer positively flagged the text, so it must not reach the agent
         model. Text that merely could not be screened is passed on, but still counts as
         suspicious for payments."""
-        return self.suspicious and any(c != "screening_failed" for c in self.categories)
+        return self.suspicious and any(c not in UNCHECKED for c in self.categories)
 
 
 CLEAN = Verdict(suspicious=False)
@@ -90,6 +93,12 @@ SCREENING_FAILED = Verdict(
     suspicious=True,
     categories=("screening_failed",),
     reasons=(CATEGORIES["screening_failed"],),
+    layers=("model",),
+)
+NOT_SCREENED = Verdict(
+    suspicious=True,
+    categories=("not_screened",),
+    reasons=(CATEGORIES["not_screened"],),
     layers=("model",),
 )
 
@@ -530,9 +539,7 @@ def parse_model_reply(text: str, expected_ids: Sequence[int]) -> dict[int, Verdi
             continue
         named = [c for c in categories if isinstance(c, str)]
         known = tuple(
-            dict.fromkeys(
-                c if c in CATEGORIES and c != "screening_failed" else "other" for c in named
-            )
+            dict.fromkeys(c if c in CATEGORIES and c not in UNCHECKED else "other" for c in named)
         )
         if not flag and not known:
             verdicts[item_id] = CLEAN
@@ -607,10 +614,17 @@ class Sentinel:
             key=lambda pair: -len(pair[1]),
         )
         answers.update(self._ask(missing, source))
-        return [
-            verdict if key is None else answers.get(key, CLEAN)
-            for verdict, key in zip(verdicts, keys, strict=True)
-        ]
+        results = []
+        for verdict, key in zip(verdicts, keys, strict=True):
+            if key is None:
+                results.append(verdict)
+                continue
+            # Text left over past the call limit, or past the cut, was never seen by the model.
+            answer = answers.get(key, NOT_SCREENED)
+            if not answer.suspicious and len(wanted[key]) > self._item_chars:
+                answer = NOT_SCREENED
+            results.append(answer)
+        return results
 
     def _batches(self, items: list[tuple[str, str]]) -> list[list[tuple[str, str]]]:
         batches: list[list[tuple[str, str]]] = []
