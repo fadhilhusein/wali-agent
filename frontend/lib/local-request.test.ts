@@ -14,7 +14,10 @@ test("a request without an Origin header from a local host name is allowed", () 
 });
 
 test("a website whose name was pointed at this computer is refused", () => {
-  assert.equal(isLocalRequest("evil.example:3000", "http://evil.example:3000"), false);
+  assert.equal(
+    isLocalRequest("evil.example:3000", "http://evil.example:3000"),
+    false,
+  );
   assert.equal(isLocalRequest("evil.example:3000", null), false);
 });
 

@@ -10,7 +10,10 @@ function hostnameOf(url: string): string | null {
   }
 }
 
-export function isLocalRequest(host: string | null, origin: string | null): boolean {
+export function isLocalRequest(
+  host: string | null,
+  origin: string | null,
+): boolean {
   const hostname = host === null ? null : hostnameOf(`http://${host}`);
   if (hostname === null || !LOCAL_HOSTNAMES.has(hostname)) return false;
   if (origin === null) return true;

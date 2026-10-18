@@ -12,7 +12,9 @@ export async function GET(request: NextRequest, context: Context) {
   const { action } = await context.params;
   if (!GET_ACTIONS.has(action))
     return NextResponse.json({ detail: "Not found." }, { status: 404 });
-  if (!isLocalRequest(request.headers.get("host"), request.headers.get("origin"))) {
+  if (
+    !isLocalRequest(request.headers.get("host"), request.headers.get("origin"))
+  ) {
     return NextResponse.json({ detail: "Refused." }, { status: 403 });
   }
   const upstream = new URL(`/api/${action}`, BACKEND);
@@ -27,7 +29,9 @@ export async function POST(request: NextRequest, context: Context) {
   const { action } = await context.params;
   if (!POST_ACTIONS.has(action))
     return NextResponse.json({ detail: "Not found." }, { status: 404 });
-  if (!isLocalRequest(request.headers.get("host"), request.headers.get("origin"))) {
+  if (
+    !isLocalRequest(request.headers.get("host"), request.headers.get("origin"))
+  ) {
     return NextResponse.json({ detail: "Refused." }, { status: 403 });
   }
   if (
