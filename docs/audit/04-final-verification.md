@@ -126,7 +126,7 @@ pelonggaran pertahanan berlapis:
 |---|---|---|---|---|
 | — | Item #3 sampai #12 belum diperbaiki | Required | `02-review.md` | Pemilik menjawab pertanyaan di `03-fixes.md`, lalu tiap item dikerjakan satu commit beserta tes. |
 | — | #13: web tanpa login | Required (diterima untuk demo) | `02-review.md` | Jangan jalankan di luar loopback atau `--host 0.0.0.0` sebelum ada login atau token per peluncuran. |
-| R1 | `[::1]` ditolak oleh FastAPI | Required (regresi) | `5e943e7` | Tambahkan `"[::1]"` ke allowlist `TrustedHostMiddleware` (atau tambahkan kurung siku pada host IPv6), lalu tambahkan tes `Host: [::1]:8000`. Ini perbaikan bug yang mengembalikan perilaku lama. |
+| R1 | `[::1]` ditolak oleh FastAPI | **Selesai** (`e38bfd6`) | `5e943e7` | Host IPv6 diberi kurung siku sebelum diserahkan ke `TrustedHostMiddleware`. Tes `test_every_local_host_name_reaches_the_api` gagal untuk `[::1]:8000` dan `[::1]` sebelum perbaikan, lalu lulus sesudahnya. |
 | R2 | Akses lewat IP LAN ditolak | Keputusan pemilik | `5e943e7` | Putuskan apakah diterima. Kalau ya, catat di `03-fixes.md` dan hapus `192.168.0.13` dari `allowedDevOrigins` (#30). Kalau tidak, allowlist harus bisa dikonfigurasi. |
 | R3 | Port dan skema Origin tidak dicek | Nit (defense-in-depth) | `5e943e7` | Bandingkan origin lengkap (skema, host, dan port) dengan daftar yang dikonfigurasi. Ini sejalan dengan #20. |
 | R4 | 2 tes gagal (F1), CI `pytest` merah | Required (proses) | sudah ada sebelum audit | Perlu keputusan pemilik: tulis ulang `docs/baseline/offline.json` dan ganti angka 20 di tes. |
@@ -145,6 +145,12 @@ dan log audit tidak disentuh.
 ## Syarat menjadi GO
 
 1. #3 sampai #12 diperbaiki, masing-masing beserta tes, setelah pemilik memutuskan.
-2. R1 diperbaiki dan R2 diputuskan.
+2. R2 diputuskan (R1 sudah diperbaiki di `e38bfd6`).
 3. `uv run pytest` lulus 100% (F1 sudah diputuskan) dan `test:unit` berjalan di CI.
 4. #13 diputuskan: login atau token sebelum dipakai di luar demo, atau pemakaian dibatasi tegas hanya untuk demo lokal.
+
+## Pembaruan setelah laporan
+
+- **R1 diperbaiki** di `e38bfd6`. Setelah perbaikan, `uv run pytest -q` menghasilkan 1463 lulus dan 2 gagal. Dua
+  kegagalan itu sama dengan F1, sedangkan 4 tes baru semuanya lulus. `ruff` bersih.
+- Keputusan tetap **NO-GO**. Item #3 sampai #13, R2, dan F1 belum selesai.
