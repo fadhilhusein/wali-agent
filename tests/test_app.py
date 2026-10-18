@@ -458,3 +458,36 @@ def test_cli_shows_flagged_invoices_to_the_owner(ready, principals, ground_truth
 
     assert f"- {invoice_id} [SUPPLIER_ACCOUNT_MISMATCH]" in output
     assert ready.env.list_payments() == []
+
+
+def test_cli_confirm_number_means_the_item_that_was_shown(ready, principals, owner, ground_truth):
+    """If the first item goes away after the owner read the list, /confirm 1 must not
+    approve what used to be item 2."""
+    first, second = clean(ready, owner, ground_truth, 1_000_001, 4_000_000)[-2:]
+    llm = ScriptedLLM(
+        use(("propose_payment", {"invoice_id": first.id})),
+        say("Menunggu."),
+        use(("propose_payment", {"invoice_id": second.id})),
+        say("Menunggu."),
+    )
+    app = ready.make_app(llm)
+    bookkeeper = principals["bookkeeper"]
+    app.chat(bookkeeper, "bayar yang pertama")
+    app.chat(bookkeeper, "sekalian yang kedua")
+    shown_first = app.pending(owner)[0]
+    lines = iter(["/pending", "/confirm 1", "/pending"])
+    printed = []
+
+    def read(prompt: str) -> str:
+        line = next(lines, None)
+        if line is None:
+            raise EOFError
+        if line == "/confirm 1":
+            app.cancel(owner, subject_id=shown_first.subject_id)  # gone after it was read
+        return line
+
+    run_cli(app, principals, input_fn=read, output_fn=printed.append)
+
+    assert "That item is no longer waiting. Type /pending to see the list again." in printed
+    assert ready.env.list_payments() == []
+    assert len(app.pending(owner)) == 1

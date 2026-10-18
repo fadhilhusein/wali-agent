@@ -44,9 +44,13 @@ def run_cli(
 ) -> None:
     """The read-answer loop. ``input_fn`` and ``output_fn`` are replaceable for tests."""
     principal = principals[role]
+    # The items as last listed: /confirm 2 means the second item the person saw, even if the
+    # list has changed since.
+    shown: list[str] = []
 
     def show_pending(*, announce_empty: bool = False) -> None:
         waiting = app.pending(principal)
+        shown[:] = [request.subject_id for request in waiting]
         if not waiting:
             if announce_empty:
                 output_fn("Nothing is waiting for your confirmation.")
@@ -111,16 +115,27 @@ def run_cli(
             number = number_from(argument)
             if number is None:
                 output_fn("Give the number of the item, for example /confirm 1")
-            elif command == "/confirm":
-                decision = app.confirm(principal, number)
+            elif number > len(shown):
                 output_fn(
                     "There is no such item waiting for you."
+                    if command == "/confirm"
+                    else "Nothing to decline."
+                )
+            elif command == "/confirm":
+                decision = app.confirm(principal, subject_id=shown[number - 1])
+                output_fn(
+                    "That item is no longer waiting. Type /pending to see the list again."
                     if decision is None
                     else f"guard> {decision.user_message}"
                 )
                 show_pending()
             else:
-                output_fn("Declined." if app.cancel(principal, number) else "Nothing to decline.")
+                declined = app.cancel(principal, subject_id=shown[number - 1])
+                output_fn(
+                    "Declined."
+                    if declined
+                    else "That item is no longer waiting. Type /pending to see the list again."
+                )
         elif command == "/mandate":
             try:
                 decision = draft_demo_mandate(app, principal)
