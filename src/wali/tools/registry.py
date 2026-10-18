@@ -885,6 +885,8 @@ class ToolRegistry:
                 ):
                     withdrawn.append({k: v for k, v in earlier.items() if k != "proposal_id"})
             self._pending_proposals.clear()
+            # Only what was asked before this turn: a correction may name several payments.
+            self._replace_pending = False
 
         decision = self._guard.propose_payment(
             self._principal,

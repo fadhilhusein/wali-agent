@@ -162,6 +162,31 @@ def test_a_correction_withdraws_the_earlier_request_and_makes_the_new_one(
     assert [p.invoice_id for p in ready.env.list_payments()] == [kopi.id]
 
 
+def test_a_correction_that_names_two_payments_keeps_both(ready, owner, bookkeeper, ground_truth):
+    kemasan = invoice_of(ready, owner, "sup-kemasan", ground_truth)
+    kopi = invoice_of(ready, owner, "sup-kopi", ground_truth)
+    air = invoice_of(ready, owner, "sup-air", ground_truth)
+    llm = ScriptedLLM(
+        use(("propose_payment", {"invoice_id": kemasan.id})),
+        say("Menunggu pemilik."),
+        use(
+            ("propose_payment", {"invoice_id": kopi.id}),
+            ("propose_payment", {"invoice_id": air.id}),
+        ),
+        say("Diganti ke kopi dan air."),
+    )
+    app = ready.make_app(llm)
+
+    app.chat(bookkeeper, "bayar tagihan kemasan")
+    app.chat(bookkeeper, "eh salah, bayar kopi dan air")
+
+    waiting = [r.summary.invoice_number for r in app.pending(owner)]
+    paid = [p.invoice_id for p in ready.env.list_payments()]
+    assert kopi.number in waiting
+    assert kemasan.number not in waiting
+    assert air.number in waiting or air.id in paid
+
+
 def test_a_second_request_that_is_not_a_correction_keeps_both(
     ready, owner, bookkeeper, ground_truth
 ):
