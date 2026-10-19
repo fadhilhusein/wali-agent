@@ -12,11 +12,13 @@ Callers must never put secrets (keys, signatures, confirmation tokens) into an e
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import hashlib
 import json
+import os
 import threading
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from pathlib import Path
@@ -26,6 +28,11 @@ from pydantic import BaseModel
 
 from wali.guard.signing import canonical_json
 from wali.models import Principal
+
+if os.name == "nt":
+    import msvcrt
+else:
+    import fcntl
 
 GENESIS_HASH = "0" * 64
 _FIELDS = {"ts", "session_id", "principal", "event", "data", "prev_hash", "hash"}
@@ -99,6 +106,50 @@ def verify_chain(path: Path | str) -> ChainStatus:
     return ChainStatus(ok=True, entries=count, last_hash=prev)
 
 
+@contextlib.contextmanager
+def _locked(handle: Any) -> Iterator[None]:
+    """An OS lock on the open log, so processes that share the file take turns."""
+    if os.name == "nt":
+        handle.seek(0)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_LOCK, 1)
+        try:
+            yield
+        finally:
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
+def _last_hash(handle: Any) -> str:
+    """The hash of the file's last entry, read from its end."""
+    end = handle.seek(0, os.SEEK_END)
+    if end == 0:
+        return GENESIS_HASH
+    tail, position = b"", end
+    while position > 0:
+        step = min(4096, position)
+        position -= step
+        handle.seek(position)
+        tail = handle.read(step) + tail
+        if tail.count(b"\n") >= 2 or position == 0:
+            break
+    if not tail.endswith(b"\n"):
+        raise AuditError("The audit log ends in the middle of an entry.")
+    last = tail[:-1].rsplit(b"\n", 1)[-1]
+    try:
+        found = json.loads(last)["hash"]
+    except (ValueError, KeyError, TypeError):
+        raise AuditError("The last entry of the audit log cannot be read.") from None
+    if not isinstance(found, str):
+        raise AuditError("The last entry of the audit log cannot be read.")
+    return found
+
+
 class AuditLog:
     def __init__(self, path: Path | str) -> None:
         """Open or create the log. Refuses to continue a log whose chain is already broken."""
@@ -110,7 +161,6 @@ class AuditLog:
             raise AuditError(
                 f"Audit log {self._path} is damaged at line {status.bad_line}: {status.problem}"
             )
-        self._prev_hash = status.last_hash
 
     @property
     def path(self) -> Path:
@@ -125,23 +175,24 @@ class AuditLog:
         data: Mapping[str, Any] | None = None,
         session_id: str = "",
     ) -> dict[str, Any]:
-        """Write one entry and return it."""
+        """Write one entry and return it. Another process may share the file, so the previous
+        hash is read from the file under a lock rather than remembered."""
         if ts.tzinfo is None:
             raise ValueError("Audit timestamps must be timezone-aware")
-        with self._lock:
-            body = {
-                "ts": ts.isoformat(),
-                "session_id": session_id,
-                "principal": _jsonable(principal),
-                "event": event,
-                "data": _jsonable(data or {}),
-                "prev_hash": self._prev_hash,
-            }
-            entry = {**body, "hash": entry_hash(self._prev_hash, body)}
+        content = {
+            "ts": ts.isoformat(),
+            "session_id": session_id,
+            "principal": _jsonable(principal),
+            "event": event,
+            "data": _jsonable(data or {}),
+        }
+        with self._lock, self._path.open("a+b") as handle, _locked(handle):
+            prev_hash = _last_hash(handle)
+            body = {**content, "prev_hash": prev_hash}
+            entry = {**body, "hash": entry_hash(prev_hash, body)}
             line = json.dumps(entry, sort_keys=True, ensure_ascii=False)
-            with self._path.open("a", encoding="utf-8", newline="\n") as handle:
-                handle.write(line + "\n")
-            self._prev_hash = entry["hash"]
+            handle.write(line.encode("utf-8") + b"\n")
+            handle.flush()  # before the lock is released
             return entry
 
     def entries(self) -> list[dict[str, Any]]:

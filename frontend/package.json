@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format:check": "prettier --check app components lib",
+    "test:unit": "node --test lib/decision-tone.test.ts lib/local-request.test.ts lib/next-config.test.ts",
     "test:ui": "node scripts/verify-chat.cjs",
     "test:landing": "node scripts/verify-landing.cjs",
     "test:workflow-demo": "node scripts/verify-workflow-demo.cjs",

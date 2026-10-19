@@ -124,6 +124,16 @@ BOOK_CATEGORY_FOR_PAYMENTS = "supplier_payment"
 _INTERNAL_ERROR = (
     "Something went wrong while handling this request, so nothing was changed. Please try again."
 )
+_ENTRY_UNCERTAIN = (
+    "The books did not answer, so it is not certain whether the entry was recorded. "
+    "Check the books before adding it again."
+)
+_OUT_OF_SYNC = (
+    "An earlier payment could not be written to the guard's records, so the weekly total "
+    "cannot be checked. Nothing more is paid until it is recorded. Please try again later."
+)
+# Denials that say nothing about the payment itself: a confirmation survives them.
+_PASSING_OUTAGES = frozenset({"INTERNAL_ERROR", "RECORDS_OUT_OF_SYNC"})
 _UNREACHABLE = (
     "I could not reach the financial system to check this, so nothing was changed. "
     "Please try again in a moment."
@@ -298,6 +308,8 @@ class GuardService:
         self._proposals_per_hour = proposals_per_hour
         self._confirmations = ConfirmationStore(dt.timedelta(seconds=confirm_ttl_seconds))
         self._pending: dict[str, _PendingPayment] = {}
+        # Payments that went through but could not be written to the store yet.
+        self._unrecorded: list[dict[str, Any]] = []
         self._drafts: dict[str, MandateTerms] = {}
         self._outbox: list[ConfirmationRequest] = []
         self._lock = threading.RLock()
@@ -380,6 +392,11 @@ class GuardService:
         with self._lock:
             requests, self._outbox = self._outbox, []
             return requests
+
+    def token_is_live(self, token: str) -> bool:
+        """Whether a confirmation token can still be used. For an interface holding one."""
+        with self._lock:
+            return self._confirmations.is_live_token(token)
 
     def is_pending(self, subject_id: str) -> bool:
         """Whether a proposal or draft is still waiting for confirmation. It stops being so
@@ -618,6 +635,8 @@ class GuardService:
         )
         if refused is not None:
             return refused, None
+        if not self._write_unrecorded():
+            return Deny(reason_code="RECORDS_OUT_OF_SYNC", user_message=_OUT_OF_SYNC), None
         try:
             view = self._build_view(
                 proposal, principal, now, suspicious, proposals_last_hour, session_id
@@ -846,18 +865,13 @@ class GuardService:
             **common,
         )
 
+        # Sent once. An approval that did reach the bank would be refused as used on a second
+        # try, and the money would then look unpaid.
         try:
-            result: PaymentResult = self._read(self._env.execute_payment, approval)
+            result: PaymentResult = self._env.execute_payment(approval)
         except ToolFailure:
             self._audit("payment_failed", proposer, now, session_id, **common)
-            return PaymentDecision(
-                status="failed",
-                proposal_id=proposal.proposal_id,
-                reason_code="ENVIRONMENT_FAILURE",
-                user_message=(
-                    "The payment system did not respond, so nothing was paid. Please try again."
-                ),
-            )
+            return self._unanswered_payment(proposer, proposal, approval, now, session_id)
         if result.status != "success":
             self._audit(
                 "payment_rejected", proposer, now, session_id, message=result.message, **common
@@ -876,26 +890,21 @@ class GuardService:
 
         # The money has moved. Nothing below may turn this into a reported failure.
         notes = []
-        try:
-            self._store.record_execution(
-                approval_id=approval.approval_id,
-                invoice_id=terms.invoice_id,
-                supplier_id=terms.supplier_id,
-                amount=terms.amount,
-                currency=terms.currency,
-                proposed_by=proposer.user_id,
-                now=now,
-            )
-            self._audit(
-                "payment_executed",
-                confirmed_by or proposer,
-                now,
-                session_id,
-                transaction_id=result.transaction_id,
-                **common,
-            )
-        except Exception:
-            self._audit_error("record_execution", proposer, session_id)
+        recorded = self._record_execution(approval, proposer, now, session_id)
+        if recorded:
+            try:
+                self._audit(
+                    "payment_executed",
+                    confirmed_by or proposer,
+                    now,
+                    session_id,
+                    transaction_id=result.transaction_id,
+                    **common,
+                )
+            except Exception:
+                self._audit_error("record_execution", proposer, session_id)
+                recorded = False
+        if not recorded:
             notes.append("The payment could not be written to the guard's own records.")
 
         summary = self._summary(view, view.balance.amount - terms.amount)
@@ -910,7 +919,7 @@ class GuardService:
                 invoice_id=terms.invoice_id,
             )
             try:
-                recorded = self._read(self._env.record_book_entry, proposer, entry)
+                recorded = self._env.record_book_entry(proposer, entry)
                 self._audit(
                     "book_entry_recorded",
                     proposer,
@@ -934,6 +943,95 @@ class GuardService:
             user_message=" ".join([message, *notes]),
             summary=shown,
             transaction_id=result.transaction_id,
+        )
+
+    def _record_execution(
+        self, approval: GuardApproval, proposer: Principal, now: dt.datetime, session_id: str
+    ) -> bool:
+        """Write a payment to the store. One that cannot be written is kept, and nothing more
+        is paid until it is (see ``_write_unrecorded``)."""
+        record = {
+            "approval_id": approval.approval_id,
+            "invoice_id": approval.invoice_id,
+            "supplier_id": approval.supplier_id,
+            "amount": approval.amount,
+            "currency": approval.currency,
+            "proposed_by": proposer.user_id,
+            "now": now,
+        }
+        try:
+            self._store.record_execution(**record)
+        except Exception:
+            self._audit_error("record_execution", proposer, session_id)
+            self._unrecorded.append(record)
+            return False
+        return True
+
+    def _write_unrecorded(self) -> bool:
+        """The weekly total is read from the store, so it is wrong while a payment is missing
+        from it. Returns False while any still cannot be written."""
+        while self._unrecorded:
+            record = self._unrecorded[0]
+            try:
+                # A failed write may have landed anyway; writing it twice would clash forever.
+                if not self._store.invoice_paid(record["invoice_id"]):
+                    self._store.record_execution(**record)
+            except Exception:
+                return False
+            self._unrecorded.pop(0)
+        return True
+
+    def _unanswered_payment(
+        self,
+        proposer: Principal,
+        proposal: PaymentProposal,
+        approval: GuardApproval,
+        now: dt.datetime,
+        session_id: str,
+    ) -> PaymentDecision:
+        """The bank did not answer. Whether the money moved is read from the invoice."""
+        try:
+            payables: list[Invoice] = self._read(self._env.list_invoices, proposer, "payable")
+            invoice = next((i for i in payables if i.id == approval.invoice_id), None)
+        except Exception:
+            invoice = None
+        if invoice is not None and invoice.status == "open":
+            return PaymentDecision(
+                status="failed",
+                proposal_id=proposal.proposal_id,
+                reason_code="ENVIRONMENT_FAILURE",
+                user_message=(
+                    "The payment system did not respond. The invoice is still open, so nothing "
+                    "was paid. Please try again."
+                ),
+            )
+        self._audit(
+            "payment_uncertain",
+            proposer,
+            now,
+            session_id,
+            proposal_id=proposal.proposal_id,
+            approval_id=approval.approval_id,
+            invoice_id=approval.invoice_id,
+            invoice_status=None if invoice is None else invoice.status,
+        )
+        if invoice is not None and invoice.status == "paid":
+            # Counted as paid, so the weekly limit and the duplicate check include it.
+            self._record_execution(approval, proposer, now, session_id)
+            message = (
+                "The payment system did not respond, but the invoice now shows as paid. "
+                "Do not pay it again. Check the bank statement."
+            )
+        else:
+            message = (
+                "The payment system did not respond, and it is not certain whether the invoice "
+                "was paid. Do not try again until the bank statement has been checked."
+            )
+        return PaymentDecision(
+            status="failed",
+            proposal_id=proposal.proposal_id,
+            reason_code="OUTCOME_UNCERTAIN",
+            user_message=message,
         )
 
     # --- Payments: confirming ------------------------------------------------------------
@@ -970,10 +1068,10 @@ class GuardService:
         if problem is not None:
             return self._refuse_confirmation(principal, problem, now, session_id)
         try:
-            item = self._confirmations.redeem(token, principal, "payment", now)
+            item = self._confirmations.check(token, principal, "payment", now)
         except ConfirmationError as error:
             return self._refuse_confirmation(principal, error.code, now, session_id)
-        pending = self._pending.pop(item.subject_id, None)
+        pending = self._pending.get(item.subject_id)
         if pending is None:
             return self._refuse_confirmation(principal, "CONFIRMATION_INVALID", now, session_id)
         proposal = pending.proposal
@@ -982,6 +1080,15 @@ class GuardService:
         decision, view = self._decide(
             proposal, pending.proposer, now, pending.suspicious, 0, session_id
         )
+        if isinstance(decision, Deny) and decision.reason_code in _PASSING_OUTAGES:
+            # The token is kept, so the owner can press Confirm again once this clears.
+            return PaymentDecision(
+                status="denied",
+                reason_code=decision.reason_code,
+                user_message=decision.user_message,
+            )
+        self._confirmations.redeem(token, principal, "payment", now)
+        del self._pending[item.subject_id]
         if isinstance(decision, Deny):
             return self._denied(proposal, pending.proposer, decision, now, session_id)
         if decision.terms.digest() != item.subject_hash:
@@ -1366,10 +1473,18 @@ class GuardService:
     # --- Books ---------------------------------------------------------------------------
 
     def record_book_entry(
-        self, principal: Principal, entry: NewBookEntry, *, session_id: str = ""
+        self,
+        principal: Principal,
+        entry: NewBookEntry,
+        *,
+        session_id: str = "",
+        suspicious: bool = False,
     ) -> BookEntryDecision:
         """Add a books entry on someone's behalf. Needs a valid mandate that allows it and a
-        role that keeps the books. This never moves money."""
+        role that keeps the books. This never moves money.
+
+        ``suspicious`` marks a turn in which text looked like an instruction or could not be
+        screened. Nobody confirms a books entry, so in such a turn it is refused."""
         with self._lock:
             try:
                 now = self._now()
@@ -1399,8 +1514,16 @@ class GuardService:
                     return denied(
                         "ROLE_NOT_ALLOWED", "Your role is not allowed to record book entries."
                     )
+                if suspicious:
+                    return denied(
+                        "INJECTION_SUSPECTED",
+                        "Text in this conversation looked like an instruction or could not be "
+                        "checked, so I will not change the books now. Please add the entry by "
+                        "hand, or ask again in a new message.",
+                    )
                 try:
-                    recorded: BookEntry = self._read(self._env.record_book_entry, principal, entry)
+                    # Sent once: an entry that did reach the books would be written twice.
+                    recorded: BookEntry = self._env.record_book_entry(principal, entry)
                 except AccessDenied:
                     return denied(
                         "ROLE_NOT_ALLOWED", "Your role is not allowed to record book entries."
@@ -1410,7 +1533,7 @@ class GuardService:
                         "INVOICE_INVALID", "I could not find the invoice this entry refers to."
                     )
                 except ToolFailure:
-                    return denied("INTERNAL_ERROR", _UNREACHABLE)
+                    return denied("INTERNAL_ERROR", _ENTRY_UNCERTAIN)
                 self._audit(
                     "book_entry_recorded",
                     principal,

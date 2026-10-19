@@ -99,6 +99,14 @@ class ConfirmationStore:
         A wrong role does not consume the token, so someone else's failed attempt cannot stop
         the owner from confirming. Success and expiry both remove it.
         """
+        item = self.check(token, principal, kind, now)
+        del self._pending[_key(token)]
+        return item
+
+    def check(
+        self, token: object, principal: Principal, kind: ConfirmationKind, now: dt.datetime
+    ) -> PendingConfirmation:
+        """What ``redeem`` checks, without using the token up (an expired one is removed)."""
         key = _key(token)
         item = self._pending.get(key) if key else None
         if item is None or item.kind != kind:
@@ -108,7 +116,6 @@ class ConfirmationStore:
             raise ConfirmationError("CONFIRMATION_EXPIRED")
         if principal.business_id != item.business_id or principal.role != item.required_role:
             raise ConfirmationError("ROLE_NOT_ALLOWED")
-        del self._pending[key]
         return item
 
     def void_subject(self, subject_id: str) -> bool:

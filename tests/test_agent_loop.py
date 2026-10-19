@@ -364,3 +364,27 @@ def test_the_agent_trims_before_answering(session, tools):
         if not isinstance(m["content"], str)
         for b in m["content"]
     )
+
+
+@pytest.mark.parametrize(
+    ("ending", "reply_text", "stop"),
+    [
+        (say("", stop_reason="refusal"), REFUSAL_REPLY, "refusal"),
+        (say("terpotong", stop_reason="max_tokens"), TRUNCATED_REPLY, "truncated"),
+        (say(""), EMPTY_REPLY, "answered"),
+        (None, STEP_LIMIT_REPLY, "step_limit"),
+    ],
+)
+def test_every_early_ending_after_an_action_says_the_action_may_have_happened(
+    session, tools, ready, owner, ground_truth, ending, reply_text, stop
+):
+    invoice = small_invoice(ready, owner, ground_truth)
+    pay = use(("propose_payment", {"invoice_id": invoice.id}))
+    if ending is None:
+        agent = Agent(ScriptedLLM(pay), max_steps=1)
+    else:
+        agent = Agent(ScriptedLLM(pay, ending))
+
+    reply = agent.respond(session, tools, "bayar air")
+
+    assert (reply.text, reply.stop) == (reply_text + ACTIONS_MAY_HAVE_RUN, stop)

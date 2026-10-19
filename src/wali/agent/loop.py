@@ -162,6 +162,10 @@ class Agent:
         traces: list[ToolTrace] = []
         corrected = False
 
+        def acted() -> str:
+            """Appended to any reply that ends the turn early, once an action tool has run."""
+            return ACTIONS_MAY_HAVE_RUN if any(t.name in ACTION_TOOLS for t in traces) else ""
+
         def finish(text: str, stop: str, steps: int, *, record: bool = True) -> AgentReply:
             if record:
                 session.messages.append({"role": "assistant", "content": text})
@@ -186,13 +190,12 @@ class Agent:
                     tools=registry.schemas(),
                 )
             except LLMError as error:
-                note = ACTIONS_MAY_HAVE_RUN if any(t.name in ACTION_TOOLS for t in traces) else ""
-                return finish(error.user_message + note, "llm_error", step)
+                return finish(error.user_message + acted(), "llm_error", step)
 
             if response.stop_reason == "refusal":
-                return finish(REFUSAL_REPLY, "refusal", step)
+                return finish(REFUSAL_REPLY + acted(), "refusal", step)
             if response.stop_reason == "max_tokens":
-                return finish(TRUNCATED_REPLY, "truncated", step)
+                return finish(TRUNCATED_REPLY + acted(), "truncated", step)
 
             if response.tool_calls:
                 session.messages.append({"role": "assistant", "content": response.content})
@@ -221,7 +224,7 @@ class Agent:
                 continue
 
             if not response.text:
-                return finish(EMPTY_REPLY, "answered", step)
+                return finish(EMPTY_REPLY + acted(), "answered", step)
 
             if self._reply_check is not None and not corrected:
                 problems = self._reply_check(user_text, response.text, session.messages)
@@ -249,4 +252,4 @@ class Agent:
                     text += UNVERIFIED_FIGURES_NOTE.format(figures=", ".join(unverified))
             return finish(text, "answered", step, record=False)
 
-        return finish(STEP_LIMIT_REPLY, "step_limit", self._max_steps)
+        return finish(STEP_LIMIT_REPLY + acted(), "step_limit", self._max_steps)

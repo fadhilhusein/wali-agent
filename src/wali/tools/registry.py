@@ -868,7 +868,9 @@ class ToolRegistry:
 
     def _record_book_entry(self, args: _BookEntryArgs) -> Any:
         entry = NewBookEntry(**args.model_dump())
-        return self._guard.record_book_entry(self._principal, entry, session_id=self._session_id)
+        return self._guard.record_book_entry(
+            self._principal, entry, session_id=self._session_id, suspicious=self._suspicious
+        )
 
     def _flag_for_review(self, args: _FlagArgs) -> Any:
         return self._guard.flag_for_review(
@@ -885,6 +887,8 @@ class ToolRegistry:
                 ):
                     withdrawn.append({k: v for k, v in earlier.items() if k != "proposal_id"})
             self._pending_proposals.clear()
+            # Only what was asked before this turn: a correction may name several payments.
+            self._replace_pending = False
 
         decision = self._guard.propose_payment(
             self._principal,

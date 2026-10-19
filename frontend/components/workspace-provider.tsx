@@ -18,6 +18,7 @@ import {
   waliGet,
   waliPost,
 } from "@/lib/wali-api";
+import { decisionTone } from "@/lib/decision-tone";
 
 export type Message = {
   id: number;
@@ -260,7 +261,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     setMandateNotice(null);
     try {
       const result = await waliPost<DecisionResult>("mandate", { role });
-      setMandateNotice({ tone: "success", text: result.message });
+      setMandateNotice({
+        tone: decisionTone(result.status, ["needs_confirmation"]),
+        text: result.message,
+      });
       await loadPending(role);
     } catch (error) {
       setMandateNotice({
@@ -281,7 +285,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         role,
         subject_id: request.subject_id,
       });
-      setQueueNotice({ tone: "success", text: result.message });
+      setQueueNotice({
+        tone: decisionTone(result.status, ["executed", "declined", "active"]),
+        text: result.message,
+      });
       await loadPending(role);
     } catch (error) {
       setQueueNotice({

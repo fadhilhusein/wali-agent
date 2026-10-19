@@ -3,6 +3,7 @@
 import json
 
 import pytest
+from eval.attacks import load_attacks
 from eval.offline import OFFLINE_PATH, differences, run_offline
 
 
@@ -21,7 +22,7 @@ def test_the_stored_offline_baseline_is_up_to_date(result):
 
 
 def test_what_plain_code_guarantees_holds_without_any_model(result):
-    assert result["attacks"]["held"] == result["attacks"]["count"] == 20
+    assert result["attacks"]["held"] == result["attacks"]["count"] == len(load_attacks())
     assert result["sentinel_rules"]["false_alarms"] == []
     assert result["reconciliation"]["f1_against_ground_truth"] == 1.0
     assert result["forecast"]["matches"]["first_shortfall_date"]

@@ -53,6 +53,7 @@ ReasonCode = Literal[
     "RATE_LIMITED",
     "INJECTION_SUSPECTED",
     "INTERNAL_ERROR",
+    "RECORDS_OUT_OF_SYNC",
 ]
 WarningCode = Literal[
     "ABOVE_CONFIRM_THRESHOLD",

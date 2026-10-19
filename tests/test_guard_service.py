@@ -10,6 +10,7 @@ from wali.guard.audit import verify_chain
 from wali.guard.keys import generate_keypair
 from wali.guard.service import GuardService
 from wali.models import Principal
+from wali.tools.base import ToolTimeout
 
 FAR_PAST = dt.date(2000, 1, 1)
 FAR_FUTURE = dt.date(2100, 1, 1)
@@ -668,20 +669,74 @@ def test_an_unreachable_environment_means_no_payment(ready, owner, bookkeeper, s
     assert ready.env.list_payments() == []
 
 
-def test_a_failed_payment_is_retried_once_then_reported(ready, owner, bookkeeper, ground_truth):
-    first, second = clean_invoices(ready, owner, ground_truth, 1, 999_999)[:2]
-
+def test_a_payment_that_gets_no_answer_is_not_sent_twice(ready, owner, bookkeeper, small):
+    """The invoice is still open afterwards, so the guard can say nothing was paid."""
     ready.env.inject_failure("execute_payment")
-    assert ready.guard.propose_payment(bookkeeper, first.id).status == "executed"
 
-    ready.env.inject_failure("execute_payment", times=2)
-    failed = ready.guard.propose_payment(bookkeeper, second.id)
+    failed = ready.guard.propose_payment(bookkeeper, small.id)
 
     assert (failed.status, failed.reason_code) == ("failed", "ENVIRONMENT_FAILURE")
     assert "nothing was paid" in failed.user_message
-    assert [p.invoice_id for p in ready.env.list_payments()] == [first.id]
+    assert ready.env.list_payments() == []
     assert "payment_failed" in events(ready)
-    assert ready.guard.propose_payment(bookkeeper, second.id).status == "executed"
+    assert ready.guard.propose_payment(bookkeeper, small.id).status == "executed"
+
+
+def answer_lost(env, monkeypatch, *, then_unreachable=False):
+    """The bank pays, but its answer never arrives."""
+    pay = env.execute_payment
+
+    def lost(approval):
+        pay(approval)
+        if then_unreachable:
+            env.inject_failure("list_invoices", times=2)
+        raise ToolTimeout("No answer in time.")
+
+    monkeypatch.setattr(env, "execute_payment", lost)
+
+
+def test_a_payment_whose_answer_is_lost_is_reported_as_possibly_paid(
+    ready, owner, bookkeeper, small, monkeypatch
+):
+    answer_lost(ready.env, monkeypatch)
+
+    decision = ready.guard.propose_payment(bookkeeper, small.id)
+
+    assert (decision.status, decision.reason_code) == ("failed", "OUTCOME_UNCERTAIN")
+    assert "nothing was paid" not in decision.user_message
+    assert "shows as paid" in decision.user_message
+    assert len(ready.env.list_payments()) == 1
+    monkeypatch.undo()
+    assert ready.guard.propose_payment(bookkeeper, small.id).reason_code == "DUPLICATE_PAYMENT"
+
+
+def test_a_payment_whose_outcome_cannot_be_checked_is_reported_as_uncertain(
+    ready, owner, bookkeeper, small, monkeypatch
+):
+    answer_lost(ready.env, monkeypatch, then_unreachable=True)
+
+    decision = ready.guard.propose_payment(bookkeeper, small.id)
+
+    assert (decision.status, decision.reason_code) == ("failed", "OUTCOME_UNCERTAIN")
+    assert "not certain" in decision.user_message
+    assert "nothing was paid" not in decision.user_message
+
+
+def test_a_books_entry_after_a_payment_is_not_written_twice(
+    ready, owner, bookkeeper, small, monkeypatch
+):
+    calls = []
+
+    def unanswered(*args):
+        calls.append(args)
+        raise ToolTimeout("No answer in time.")
+
+    monkeypatch.setattr(ready.env, "record_book_entry", unanswered)
+
+    decision = ready.guard.propose_payment(bookkeeper, small.id)
+
+    assert decision.status == "executed"
+    assert len(calls) == 1
 
 
 def test_a_payment_the_environment_rejects_is_reported_as_failed(world, owner, bookkeeper, small):
