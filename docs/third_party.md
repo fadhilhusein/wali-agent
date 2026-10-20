@@ -29,6 +29,7 @@ their own licences.
 | motion | 14.2.0 | MIT |
 | @paper-design/shaders-react | 0.0.81 | Apache-2.0 |
 | lottie-web | 5.13.0 | MIT |
+| lucide-react | 1.58.0 | ISC |
 | @fontsource/poppins, @fontsource/outfit | 5.3.0 | OFL-1.1 (the fonts) |
 | clsx | 2.1.1 | MIT |
 | tailwind-merge | 3.7.0 | MIT |
@@ -43,7 +44,8 @@ The Wali logo animation (`frontend/public/brand/wali.lottie`) was supplied by th
 
 | Service | Used for | Notes |
 | --- | --- | --- |
-| A language model with tool calling | The assistant, and the sentinel's screening check | Configured in `.env`. Development and the published evaluation used an OpenAI-compatible gateway with the model named in `docs/results/`. The Anthropic path is supported and tested without a live model |
+| A language model with tool calling | The assistant, and the sentinel's screening check | Configured in `.env`. The published evaluations used OpenAI-compatible endpoints: `deepseek-v4.1-flash` through the SumoPod gateway (`docs/results/`) and `openai/gpt-oss-20b` through NVIDIA NIM (`docs/baseline/`). The Anthropic path is supported and tested without a live model |
+| GitHub Actions | Tests, lint, and frontend checks on every push and pull request | `.github/workflows/ci.yml`; it never calls a model |
 | Telegram Bot API | The Telegram interface | Optional; needs a bot token from @BotFather |
 
 No real bank, payment network, or personal data is used anywhere. The bank, the books, the

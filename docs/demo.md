@@ -34,7 +34,7 @@ differ is the outcome in the last column.
 | # | Who | Type or do | What should happen |
 | --- | --- | --- | --- |
 | 1 | Bookkeeper | `tolong rekonsiliasi transaksi September, kasih tau yang janggal` | Lists the differences that matter, largest first, each with an amount and a next step: duplicate bank entries, amount mismatches, items only in the bank or only in the books |
-| 2 | Owner | `kas gue aman ga sampe akhir bulan?` | Warns that cash goes below zero around 5 October, names the lowest point, and suggests actions (chase customer invoices, delay a payable) for the owner to decide |
+| 2 | Owner | `kas gue aman ga sampe akhir bulan?` | Warns that cash goes below zero on 6 October, names the lowest point, and suggests actions (chase customer invoices, delay a payable) for the owner to decide. Invoices that still need verification (the copies, the unverified supplier, the changed-account invoice) are listed apart instead of being counted |
 | 3 | Bookkeeper | `bayarin tagihan kopi pak budi ya` | Rp 2.841.000 is above the owner's threshold, so nothing is paid: "sent to the owner". The owner's chat shows the request with **Confirm / Decline** |
 | 4 | Owner | Press **Confirm** | "Paid 2,841,000 IDR ... to the registered account of UD Kopi Pak Budi". The bookkeeper is told the outcome |
 
@@ -69,4 +69,6 @@ uv run pytest tests/test_attacks_smoke.py -q
 
 ## Closing
 
-Show the latest evaluation (`docs/results/`), and run `uv run pytest -q` to show the test suite.
+Show the evaluation results (`docs/baseline/README.md` and `docs/results/`), run
+`uv run python -m eval.offline --check` for the model-free baseline, and `uv run pytest -q` for the
+test suite.
